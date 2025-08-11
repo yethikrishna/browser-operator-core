@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Browser Operator - AI Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="web-chat.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #1e1e1e;
+      color: #cccccc;
+      overflow: hidden;
+    }
+    
+    #loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 9999;
+    }
+    
+    #loading.hidden {
+      display: none;
+    }
+    
+    .spinner {
+      border: 3px solid #333;
+      border-top: 3px solid #007acc;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    #app-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: #2d2d30;
+      padding: 10px 20px;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      color: #cccccc;
+    }
+    
+    .status {
+      font-size: 12px;
+      color: #007acc;
+    }
+    
+    #devtools-container {
+      flex: 1;
+      background: #1e1e1e;
+    }
+    
+    .error {
+      color: #f14c4c;
+      background: #2d1b1b;
+      padding: 20px;
+      margin: 20px;
+      border-radius: 4px;
+      border-left: 4px solid #f14c4c;
+    }
+    
+    @media (prefers-color-scheme: light) {
+      body {
+        background-color: #ffffff;
+        color: #333333;
+      }
+      
+      .header {
+        background: #f5f5f5;
+        border-bottom-color: #e0e0e0;
+      }
+      
+      .header h1 {
+        color: #333333;
+      }
+      
+      #devtools-container {
+        background: #ffffff;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Loading Browser Operator...</div>
+  </div>
+  
+  <div id="app-container">
+    <div class="header">
+      <h1>🤖 Browser Operator - AI Assistant</h1>
+      <div class="status" id="status">Initializing...</div>
+    </div>
+    <div id="devtools-container"></div>
+  </div>
+
+  <!-- Import Maps for TypeScript support -->
+  <script type="importmap">
+    {
+      "imports": {
+        "devtools/": "./front_end/",
+        "@typescript-eslint/utils": "https://cdn.skypack.dev/@typescript-eslint/utils",
+        "typescript": "https://cdn.skypack.dev/typescript"
+      }
+    }
+  </script>
+
+  <script src="web-chat.js"></script>
+  <script type="module">
+    const updateStatus = (message) => {
+      document.getElementById('status').textContent = message;
+    };
+
+    const hideLoading = () => {
+      document.getElementById('loading').classList.add('hidden');
+    };
+
+    const showError = (message) => {
+      hideLoading();
+      const container = document.getElementById('devtools-container');
+      container.innerHTML = `
+        <div class="error">
+          <h3>Error Loading Browser Operator</h3>
+          <p>${message}</p>
+          <p>Please check the browser console for more details.</p>
+        </div>
+      `;
+    };
+
+    // Create the enhanced AI Chat interface
+    const createEnhancedChatInterface = () => {
+      hideLoading();
+      updateStatus('Ready');
+      
+      const container = document.getElementById('devtools-container');
+      
+      // Initialize the enhanced chat interface
+      const chatInterface = new SimpleChatInterface(container);
+      
+      // Update status based on settings
+      setTimeout(() => {
+        chatInterface.updateConnectionStatus();
+      }, 100);
+    };
+
+    // Initialize the application
+    async function initializeApp() {
+      try {
+        updateStatus('Loading Browser Operator...');
+        
+        // Load CSS first
+        const cssLinks = [
+          './front_end/application_tokens.css',
+          './front_end/design_system_tokens.css'
+        ];
+        
+        for (const href of cssLinks) {
+          try {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            document.head.appendChild(link);
+          } catch (e) {
+            console.warn('Could not load DevTools CSS:', href);
+          }
+        }
+        
+        updateStatus('Setting up runtime environment...');
+        
+        // Set up basic DevTools compatibility layer
+        if (!globalThis.self) {
+          globalThis.self = globalThis;
+        }
+        
+        // Create mock DevTools APIs for browser environment
+        window.DevToolsAPI = {
+          sendMessageToEmbedder: () => {},
+          isHostedMode: () => true,
+        };
+        
+        updateStatus('Loading AI Chat Interface...');
+        
+        // Create the enhanced chat interface
+        createEnhancedChatInterface();
+        
+      } catch (error) {
+        console.error('Initialization error:', error);
+        showError(`Failed to initialize: ${error.message}`);
+      }
+    }
+
+    // Handle module loading errors
+    window.addEventListener('error', (event) => {
+      console.error('Global error:', event.error);
+    });
+
+    // Start the application when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
+    }
+  </script>
+</body>
+</html>

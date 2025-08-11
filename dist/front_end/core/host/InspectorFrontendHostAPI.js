@@ -1,0 +1,113 @@
+// Copyright (c) 2015 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+export var Events;
+(function (Events) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Accessed from web_tests */
+    Events["AppendedToURL"] = "appendedToURL";
+    Events["CanceledSaveURL"] = "canceledSaveURL";
+    Events["ColorThemeChanged"] = "colorThemeChanged";
+    Events["ContextMenuCleared"] = "contextMenuCleared";
+    Events["ContextMenuItemSelected"] = "contextMenuItemSelected";
+    Events["DeviceCountUpdated"] = "deviceCountUpdated";
+    Events["DevicesDiscoveryConfigChanged"] = "devicesDiscoveryConfigChanged";
+    Events["DevicesPortForwardingStatusChanged"] = "devicesPortForwardingStatusChanged";
+    Events["DevicesUpdated"] = "devicesUpdated";
+    Events["DispatchMessage"] = "dispatchMessage";
+    Events["DispatchMessageChunk"] = "dispatchMessageChunk";
+    Events["EnterInspectElementMode"] = "enterInspectElementMode";
+    Events["EyeDropperPickedColor"] = "eyeDropperPickedColor";
+    Events["FileSystemsLoaded"] = "fileSystemsLoaded";
+    Events["FileSystemRemoved"] = "fileSystemRemoved";
+    Events["FileSystemAdded"] = "fileSystemAdded";
+    Events["FileSystemFilesChangedAddedRemoved"] = "FileSystemFilesChangedAddedRemoved";
+    Events["IndexingTotalWorkCalculated"] = "indexingTotalWorkCalculated";
+    Events["IndexingWorked"] = "indexingWorked";
+    Events["IndexingDone"] = "indexingDone";
+    Events["KeyEventUnhandled"] = "keyEventUnhandled";
+    Events["ReloadInspectedPage"] = "reloadInspectedPage";
+    Events["RevealSourceLine"] = "revealSourceLine";
+    Events["SavedURL"] = "savedURL";
+    Events["SearchCompleted"] = "searchCompleted";
+    Events["SetInspectedTabId"] = "setInspectedTabId";
+    Events["SetUseSoftMenu"] = "setUseSoftMenu";
+    Events["ShowPanel"] = "showPanel";
+    /* eslint-enable @typescript-eslint/naming-convention */
+})(Events || (Events = {}));
+export const EventDescriptors = [
+    [Events.AppendedToURL, 'appendedToURL', ['url']],
+    [Events.CanceledSaveURL, 'canceledSaveURL', ['url']],
+    [Events.ColorThemeChanged, 'colorThemeChanged', []],
+    [Events.ContextMenuCleared, 'contextMenuCleared', []],
+    [Events.ContextMenuItemSelected, 'contextMenuItemSelected', ['id']],
+    [Events.DeviceCountUpdated, 'deviceCountUpdated', ['count']],
+    [Events.DevicesDiscoveryConfigChanged, 'devicesDiscoveryConfigChanged', ['config']],
+    [Events.DevicesPortForwardingStatusChanged, 'devicesPortForwardingStatusChanged', ['status']],
+    [Events.DevicesUpdated, 'devicesUpdated', ['devices']],
+    [Events.DispatchMessage, 'dispatchMessage', ['messageObject']],
+    [Events.DispatchMessageChunk, 'dispatchMessageChunk', ['messageChunk', 'messageSize']],
+    [Events.EnterInspectElementMode, 'enterInspectElementMode', []],
+    [Events.EyeDropperPickedColor, 'eyeDropperPickedColor', ['color']],
+    [Events.FileSystemsLoaded, 'fileSystemsLoaded', ['fileSystems']],
+    [Events.FileSystemRemoved, 'fileSystemRemoved', ['fileSystemPath']],
+    [Events.FileSystemAdded, 'fileSystemAdded', ['errorMessage', 'fileSystem']],
+    [Events.FileSystemFilesChangedAddedRemoved, 'fileSystemFilesChangedAddedRemoved', ['changed', 'added', 'removed']],
+    [Events.IndexingTotalWorkCalculated, 'indexingTotalWorkCalculated', ['requestId', 'fileSystemPath', 'totalWork']],
+    [Events.IndexingWorked, 'indexingWorked', ['requestId', 'fileSystemPath', 'worked']],
+    [Events.IndexingDone, 'indexingDone', ['requestId', 'fileSystemPath']],
+    [Events.KeyEventUnhandled, 'keyEventUnhandled', ['event']],
+    [Events.ReloadInspectedPage, 'reloadInspectedPage', ['hard']],
+    [Events.RevealSourceLine, 'revealSourceLine', ['url', 'lineNumber', 'columnNumber']],
+    [Events.SavedURL, 'savedURL', ['url', 'fileSystemPath']],
+    [Events.SearchCompleted, 'searchCompleted', ['requestId', 'fileSystemPath', 'files']],
+    [Events.SetInspectedTabId, 'setInspectedTabId', ['tabId']],
+    [Events.SetUseSoftMenu, 'setUseSoftMenu', ['useSoftMenu']],
+    [Events.ShowPanel, 'showPanel', ['panelName']],
+];
+/**
+ * Enum for recordPerformanceHistogram
+ * Warning: There is another definition of this enum in the DevTools code
+ * base, keep them in sync:
+ * front_end/devtools_compatibility.js
+ */
+export var EnumeratedHistogram;
+(function (EnumeratedHistogram) {
+    /* eslint-disable @typescript-eslint/naming-convention -- Shadows a legacy enum */
+    // LINT.IfChange(EnumeratedHistogram)
+    EnumeratedHistogram["ActionTaken"] = "DevTools.ActionTaken";
+    EnumeratedHistogram["PanelShown"] = "DevTools.PanelShown";
+    EnumeratedHistogram["KeyboardShortcutFired"] = "DevTools.KeyboardShortcutFired";
+    EnumeratedHistogram["IssueCreated"] = "DevTools.IssueCreated";
+    EnumeratedHistogram["IssuesPanelIssueExpanded"] = "DevTools.IssuesPanelIssueExpanded";
+    EnumeratedHistogram["IssuesPanelOpenedFrom"] = "DevTools.IssuesPanelOpenedFrom";
+    EnumeratedHistogram["IssuesPanelResourceOpened"] = "DevTools.IssuesPanelResourceOpened";
+    EnumeratedHistogram["KeybindSetSettingChanged"] = "DevTools.KeybindSetSettingChanged";
+    EnumeratedHistogram["ExperimentEnabledAtLaunch"] = "DevTools.ExperimentEnabledAtLaunch";
+    EnumeratedHistogram["ExperimentDisabledAtLaunch"] = "DevTools.ExperimentDisabledAtLaunch";
+    EnumeratedHistogram["ExperimentEnabled"] = "DevTools.ExperimentEnabled";
+    EnumeratedHistogram["ExperimentDisabled"] = "DevTools.ExperimentDisabled";
+    EnumeratedHistogram["DeveloperResourceLoaded"] = "DevTools.DeveloperResourceLoaded";
+    EnumeratedHistogram["DeveloperResourceScheme"] = "DevTools.DeveloperResourceScheme";
+    EnumeratedHistogram["Language"] = "DevTools.Language";
+    EnumeratedHistogram["SyncSetting"] = "DevTools.SyncSetting";
+    EnumeratedHistogram["RecordingAssertion"] = "DevTools.RecordingAssertion";
+    EnumeratedHistogram["RecordingCodeToggled"] = "DevTools.RecordingCodeToggled";
+    EnumeratedHistogram["RecordingCopiedToClipboard"] = "DevTools.RecordingCopiedToClipboard";
+    EnumeratedHistogram["RecordingEdited"] = "DevTools.RecordingEdited";
+    EnumeratedHistogram["RecordingExported"] = "DevTools.RecordingExported";
+    EnumeratedHistogram["RecordingReplayFinished"] = "DevTools.RecordingReplayFinished";
+    EnumeratedHistogram["RecordingReplaySpeed"] = "DevTools.RecordingReplaySpeed";
+    EnumeratedHistogram["RecordingReplayStarted"] = "DevTools.RecordingReplayStarted";
+    EnumeratedHistogram["RecordingToggled"] = "DevTools.RecordingToggled";
+    EnumeratedHistogram["SourcesPanelFileDebugged"] = "DevTools.SourcesPanelFileDebugged";
+    EnumeratedHistogram["SourcesPanelFileOpened"] = "DevTools.SourcesPanelFileOpened";
+    EnumeratedHistogram["NetworkPanelResponsePreviewOpened"] = "DevTools.NetworkPanelResponsePreviewOpened";
+    EnumeratedHistogram["TimelineNavigationSettingState"] = "DevTools.TimelineNavigationSettingState";
+    EnumeratedHistogram["CSSHintShown"] = "DevTools.CSSHintShown";
+    EnumeratedHistogram["LighthouseModeRun"] = "DevTools.LighthouseModeRun";
+    EnumeratedHistogram["LighthouseCategoryUsed"] = "DevTools.LighthouseCategoryUsed";
+    EnumeratedHistogram["SwatchActivated"] = "DevTools.SwatchActivated";
+    EnumeratedHistogram["AnimationPlaybackRateChanged"] = "DevTools.AnimationPlaybackRateChanged";
+    // LINT.ThenChange(/front_end/devtools_compatibility.js:EnumeratedHistogram)
+})(EnumeratedHistogram || (EnumeratedHistogram = {}));
+//# sourceMappingURL=InspectorFrontendHostAPI.js.map

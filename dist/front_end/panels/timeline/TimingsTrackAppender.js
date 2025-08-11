@@ -1,0 +1,232 @@
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
+var _TimingsTrackAppender_instances, _TimingsTrackAppender_colorGenerator, _TimingsTrackAppender_compatibilityBuilder, _TimingsTrackAppender_parsedTrace, _TimingsTrackAppender_extensionMarkers, _TimingsTrackAppender_appendTrackHeaderAtLevel, _TimingsTrackAppender_appendExtensionsAtLevel;
+import * as i18n from '../../core/i18n/i18n.js';
+import * as Trace from '../../models/trace/trace.js';
+import { buildGroupStyle, buildTrackHeader, getDurationString } from './AppenderUtils.js';
+import * as Extensions from './extensions/extensions.js';
+import { TimelineFlameChartMarker } from './TimelineFlameChartView.js';
+import { TimelinePanel } from './TimelinePanel.js';
+const UIStrings = {
+    /**
+     *@description Text in Timeline Flame Chart Data Provider of the Performance panel
+     */
+    timings: 'Timings',
+};
+const str_ = i18n.i18n.registerUIStrings('panels/timeline/TimingsTrackAppender.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+/**
+ * This defines the order these markers will be rendered if they are at the
+ * same timestamp. The smaller number will be shown first - e.g. so if MarkFCP,
+ * MarkDOMContent and MarkLCPCandidate have the same timestamp, visually we
+ * will render [FCP][DCL][LCP] everytime.
+ */
+export const SORT_ORDER_PAGE_LOAD_MARKERS = {
+    ["navigationStart" /* Trace.Types.Events.Name.NAVIGATION_START */]: 0,
+    ["MarkLoad" /* Trace.Types.Events.Name.MARK_LOAD */]: 1,
+    ["firstContentfulPaint" /* Trace.Types.Events.Name.MARK_FCP */]: 2,
+    ["firstPaint" /* Trace.Types.Events.Name.MARK_FIRST_PAINT */]: 2,
+    ["MarkDOMContent" /* Trace.Types.Events.Name.MARK_DOM_CONTENT */]: 3,
+    ["largestContentfulPaint::Candidate" /* Trace.Types.Events.Name.MARK_LCP_CANDIDATE */]: 4,
+};
+export class TimingsTrackAppender {
+    constructor(compatibilityBuilder, parsedTrace, colorGenerator) {
+        _TimingsTrackAppender_instances.add(this);
+        this.appenderName = 'Timings';
+        _TimingsTrackAppender_colorGenerator.set(this, void 0);
+        _TimingsTrackAppender_compatibilityBuilder.set(this, void 0);
+        _TimingsTrackAppender_parsedTrace.set(this, void 0);
+        _TimingsTrackAppender_extensionMarkers.set(this, void 0);
+        __classPrivateFieldSet(this, _TimingsTrackAppender_compatibilityBuilder, compatibilityBuilder, "f");
+        __classPrivateFieldSet(this, _TimingsTrackAppender_colorGenerator, colorGenerator, "f");
+        __classPrivateFieldSet(this, _TimingsTrackAppender_parsedTrace, parsedTrace, "f");
+        const extensionDataEnabled = TimelinePanel.extensionDataVisibilitySetting().get();
+        __classPrivateFieldSet(this, _TimingsTrackAppender_extensionMarkers, extensionDataEnabled ? __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").ExtensionTraceData.extensionMarkers : [], "f");
+    }
+    /**
+     * Appends into the flame chart data the data corresponding to the
+     * timings track.
+     * @param trackStartLevel the horizontal level of the flame chart events where
+     * the track's events will start being appended.
+     * @param expanded wether the track should be rendered expanded.
+     * @returns the first available level to append more data after having
+     * appended the track's events.
+     */
+    appendTrackAtLevel(trackStartLevel, expanded) {
+        const extensionMarkersAreEmpty = __classPrivateFieldGet(this, _TimingsTrackAppender_extensionMarkers, "f").length === 0;
+        const performanceMarks = __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").UserTimings.performanceMarks.filter(m => !Trace.Handlers.ModelHandlers.ExtensionTraceData.extensionDataInPerformanceTiming(m));
+        const performanceMeasures = __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").UserTimings.performanceMeasures.filter(m => !Trace.Handlers.ModelHandlers.ExtensionTraceData.extensionDataInPerformanceTiming(m));
+        const timestampEvents = __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").UserTimings.timestampEvents.filter(timeStamp => !Trace.Handlers.ModelHandlers.ExtensionTraceData.extensionDataInConsoleTimeStamp(timeStamp));
+        const consoleTimings = __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").UserTimings.consoleTimings;
+        if (extensionMarkersAreEmpty && performanceMarks.length === 0 && performanceMeasures.length === 0 &&
+            timestampEvents.length === 0 && consoleTimings.length === 0) {
+            return trackStartLevel;
+        }
+        __classPrivateFieldGet(this, _TimingsTrackAppender_instances, "m", _TimingsTrackAppender_appendTrackHeaderAtLevel).call(this, trackStartLevel, expanded);
+        let newLevel = __classPrivateFieldGet(this, _TimingsTrackAppender_instances, "m", _TimingsTrackAppender_appendExtensionsAtLevel).call(this, trackStartLevel);
+        newLevel = __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").appendEventsAtLevel(performanceMarks, newLevel, this);
+        newLevel = __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").appendEventsAtLevel(performanceMeasures, newLevel, this);
+        newLevel = __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").appendEventsAtLevel(timestampEvents, newLevel, this);
+        return __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").appendEventsAtLevel(consoleTimings, newLevel, this);
+    }
+    /*
+      ------------------------------------------------------------------------------------
+       The following methods  are invoked by the flame chart renderer to query features about
+       events on rendering.
+      ------------------------------------------------------------------------------------
+    */
+    /**
+     * Gets the style for a page load marker event.
+     */
+    markerStyleForPageLoadEvent(markerEvent) {
+        const tallMarkerDashStyle = [6, 4];
+        let title = '';
+        let color = 'grey';
+        if (Trace.Types.Events.isMarkDOMContent(markerEvent)) {
+            color = '#0867CB';
+            title = "DCL" /* Trace.Handlers.ModelHandlers.PageLoadMetrics.MetricName.DCL */;
+        }
+        if (Trace.Types.Events.isMarkLoad(markerEvent)) {
+            color = '#B31412';
+            title = "L" /* Trace.Handlers.ModelHandlers.PageLoadMetrics.MetricName.L */;
+        }
+        if (Trace.Types.Events.isFirstPaint(markerEvent)) {
+            color = '#228847';
+            title = "FP" /* Trace.Handlers.ModelHandlers.PageLoadMetrics.MetricName.FP */;
+        }
+        if (Trace.Types.Events.isFirstContentfulPaint(markerEvent)) {
+            color = '#1A6937';
+            title = "FCP" /* Trace.Handlers.ModelHandlers.PageLoadMetrics.MetricName.FCP */;
+        }
+        if (Trace.Types.Events.isLargestContentfulPaintCandidate(markerEvent)) {
+            color = '#1A3422';
+            title = "LCP" /* Trace.Handlers.ModelHandlers.PageLoadMetrics.MetricName.LCP */;
+        }
+        if (Trace.Types.Events.isNavigationStart(markerEvent)) {
+            color = '#FF9800';
+            title = '';
+        }
+        return {
+            title,
+            dashStyle: tallMarkerDashStyle,
+            lineWidth: 0.5,
+            color,
+            tall: true,
+            lowPriority: false,
+        };
+    }
+    markerStyleForExtensionMarker(markerEvent) {
+        const tallMarkerDashStyle = [6, 4];
+        const title = markerEvent.name;
+        const color = Extensions.ExtensionUI.extensionEntryColor(markerEvent);
+        return {
+            title,
+            dashStyle: tallMarkerDashStyle,
+            lineWidth: 0.5,
+            color,
+            tall: true,
+            lowPriority: false,
+        };
+    }
+    /**
+     * Gets the color an event added by this appender should be rendered with.
+     */
+    colorForEvent(event) {
+        if (Trace.Types.Events.eventIsPageLoadEvent(event)) {
+            return this.markerStyleForPageLoadEvent(event).color;
+        }
+        if (Trace.Types.Extensions.isSyntheticExtensionEntry(event)) {
+            return Extensions.ExtensionUI.extensionEntryColor(event);
+        }
+        // Performance and console timings.
+        return __classPrivateFieldGet(this, _TimingsTrackAppender_colorGenerator, "f").colorForID(event.name);
+    }
+    /**
+     * Gets the title an event added by this appender should be rendered with.
+     */
+    titleForEvent(event) {
+        const metricsHandler = Trace.Handlers.ModelHandlers.PageLoadMetrics;
+        if (Trace.Types.Events.eventIsPageLoadEvent(event)) {
+            switch (event.name) {
+                case 'MarkDOMContent':
+                    return "DCL" /* metricsHandler.MetricName.DCL */;
+                case 'MarkLoad':
+                    return "L" /* metricsHandler.MetricName.L */;
+                case 'firstContentfulPaint':
+                    return "FCP" /* metricsHandler.MetricName.FCP */;
+                case 'firstPaint':
+                    return "FP" /* metricsHandler.MetricName.FP */;
+                case 'largestContentfulPaint::Candidate':
+                    return "LCP" /* metricsHandler.MetricName.LCP */;
+                case 'navigationStart':
+                    return '';
+                default:
+                    return event.name;
+            }
+        }
+        if (Trace.Types.Events.isConsoleTimeStamp(event)) {
+            return `TimeStamp: ${event.args.data?.message ?? '(name unknown)'}`;
+        }
+        if (Trace.Types.Events.isPerformanceMark(event)) {
+            return `[mark]: ${event.name}`;
+        }
+        if (Trace.Types.Extensions.isSyntheticExtensionEntry(event) && event.args.tooltipText) {
+            return event.args.tooltipText;
+        }
+        return event.name;
+    }
+    setPopoverInfo(event, info) {
+        // If an event is a marker event, rather than show a duration of 0, we can instead show the time that the event happened, which is much more useful. We do this currently for:
+        // Page load events: DCL, FCP and LCP
+        // performance.mark() events
+        // console.timestamp() events
+        if (Trace.Types.Events.isMarkerEvent(event) || Trace.Types.Events.isPerformanceMark(event) ||
+            Trace.Types.Events.isConsoleTimeStamp(event)) {
+            const timeOfEvent = Trace.Helpers.Timing.timeStampForEventAdjustedByClosestNavigation(event, __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").Meta.traceBounds, __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").Meta.navigationsByNavigationId, __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").Meta.navigationsByFrameId);
+            info.formattedTime = getDurationString(timeOfEvent);
+        }
+    }
+}
+_TimingsTrackAppender_colorGenerator = new WeakMap(), _TimingsTrackAppender_compatibilityBuilder = new WeakMap(), _TimingsTrackAppender_parsedTrace = new WeakMap(), _TimingsTrackAppender_extensionMarkers = new WeakMap(), _TimingsTrackAppender_instances = new WeakSet(), _TimingsTrackAppender_appendTrackHeaderAtLevel = function _TimingsTrackAppender_appendTrackHeaderAtLevel(currentLevel, expanded) {
+    const trackIsCollapsible = __classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").UserTimings.performanceMeasures.length > 0;
+    const style = buildGroupStyle({ useFirstLineForOverview: true, collapsible: trackIsCollapsible });
+    const group = buildTrackHeader("timings" /* VisualLoggingTrackName.TIMINGS */, currentLevel, i18nString(UIStrings.timings), style, /* selectable= */ true, expanded);
+    __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").registerTrackForGroup(group, this);
+}, _TimingsTrackAppender_appendExtensionsAtLevel = function _TimingsTrackAppender_appendExtensionsAtLevel(currentLevel) {
+    let markers = [];
+    markers = markers.concat(__classPrivateFieldGet(this, _TimingsTrackAppender_extensionMarkers, "f")).sort((m1, m2) => m1.ts - m2.ts);
+    if (markers.length === 0) {
+        return currentLevel;
+    }
+    for (const marker of markers) {
+        const index = __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").appendEventAtLevel(marker, currentLevel, this);
+        // Marker events do not have a duration: rendering code in
+        // FlameChart.ts relies on us setting this to NaN
+        __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").getFlameChartTimelineData().entryTotalTimes[index] = Number.NaN;
+    }
+    const minTimeMs = Trace.Helpers.Timing.microToMilli(__classPrivateFieldGet(this, _TimingsTrackAppender_parsedTrace, "f").Meta.traceBounds.min);
+    const flameChartMarkers = markers.map(marker => {
+        // The timestamp for user timing trace events is set to the
+        // start time passed by the user at the call site of the timing
+        // (based on the UserTiming spec), meaning we can use event.ts
+        // directly.
+        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/timing/performance_user_timing.cc;l=236;drc=494419358caf690316f160a1f27d9e771a14c033
+        const startTimeMs = Trace.Helpers.Timing.microToMilli(marker.ts);
+        const style = this.markerStyleForExtensionMarker(marker);
+        return new TimelineFlameChartMarker(startTimeMs, startTimeMs - minTimeMs, style);
+    });
+    __classPrivateFieldGet(this, _TimingsTrackAppender_compatibilityBuilder, "f").getFlameChartTimelineData().markers.push(...flameChartMarkers);
+    // TODO: we would like to have markers share the level with the rest but...
+    //  due to how CompatTrackAppender.appendEventsAtLevel tweaks the legacyEntryTypeByLevel array, it would take some work
+    return ++currentLevel;
+};
+//# sourceMappingURL=TimingsTrackAppender.js.map

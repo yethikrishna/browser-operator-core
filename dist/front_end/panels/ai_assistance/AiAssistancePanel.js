@@ -1,0 +1,1557 @@
+// Copyright 2024 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
+};
+var _AiAssistancePanel_instances, _AiAssistancePanel_toggleSearchElementAction, _AiAssistancePanel_aidaClient, _AiAssistancePanel_viewOutput, _AiAssistancePanel_serverSideLoggingEnabled, _AiAssistancePanel_aiAssistanceEnabledSetting, _AiAssistancePanel_changeManager, _AiAssistancePanel_mutex, _AiAssistancePanel_conversationAgent, _AiAssistancePanel_conversation, _AiAssistancePanel_historicalConversations, _AiAssistancePanel_selectedFile, _AiAssistancePanel_selectedElement, _AiAssistancePanel_selectedCallTree, _AiAssistancePanel_selectedPerformanceInsight, _AiAssistancePanel_selectedRequest, _AiAssistancePanel_messages, _AiAssistancePanel_blockedByCrossOrigin, _AiAssistancePanel_isLoading, _AiAssistancePanel_selectedContext, _AiAssistancePanel_aidaAvailability, _AiAssistancePanel_userInfo, _AiAssistancePanel_imageInput, _AiAssistancePanel_isTextInputEmpty, _AiAssistancePanel_timelinePanelInstance, _AiAssistancePanel_getChatUiState, _AiAssistancePanel_getAiAssistanceEnabledSetting, _AiAssistancePanel_createAgent, _AiAssistancePanel_bindTimelineTraceListener, _AiAssistancePanel_selectDefaultAgentIfNeeded, _AiAssistancePanel_updateConversationState, _AiAssistancePanel_handleAidaAvailabilityChange, _AiAssistancePanel_handleDOMNodeFlavorChange, _AiAssistancePanel_handleDOMNodeAttrChange, _AiAssistancePanel_handleNetworkRequestFlavorChange, _AiAssistancePanel_handleTraceEntryNodeFlavorChange, _AiAssistancePanel_handlePerfInsightFlavorChange, _AiAssistancePanel_handleUISourceCodeFlavorChange, _AiAssistancePanel_onPrimaryPageChanged, _AiAssistancePanel_getChangeSummary, _AiAssistancePanel_handleSelectElementClick, _AiAssistancePanel_isTextInputDisabled, _AiAssistancePanel_shouldShowChatActions, _AiAssistancePanel_getChatInputPlaceholder, _AiAssistancePanel_getDisclaimerText, _AiAssistancePanel_handleFeedbackSubmit, _AiAssistancePanel_handleContextClick, _AiAssistancePanel_populateHistoryMenu, _AiAssistancePanel_onHistoryDeleted, _AiAssistancePanel_onDeleteClicked, _AiAssistancePanel_openConversation, _AiAssistancePanel_handleNewChatRequest, _AiAssistancePanel_handleTakeScreenshot, _AiAssistancePanel_handleRemoveImageInput, _AiAssistancePanel_handleTextInputChange, _AiAssistancePanel_handleLoadImage, _AiAssistancePanel_runAbortController, _AiAssistancePanel_cancel, _AiAssistancePanel_onContextSelectionChanged, _AiAssistancePanel_getConversationContext, _AiAssistancePanel_startConversation, _AiAssistancePanel_saveResponsesToCurrentConversation, _AiAssistancePanel_doConversation;
+import '../../ui/legacy/legacy.js';
+import * as Common from '../../core/common/common.js';
+import * as Host from '../../core/host/host.js';
+import * as i18n from '../../core/i18n/i18n.js';
+import * as Platform from '../../core/platform/platform.js';
+import * as Root from '../../core/root/root.js';
+import * as SDK from '../../core/sdk/sdk.js';
+import * as AiAssistanceModel from '../../models/ai_assistance/ai_assistance.js';
+import * as Workspace from '../../models/workspace/workspace.js';
+import * as Buttons from '../../ui/components/buttons/buttons.js';
+import * as Snackbars from '../../ui/components/snackbars/snackbars.js';
+import * as UI from '../../ui/legacy/legacy.js';
+import * as Lit from '../../ui/lit/lit.js';
+import * as VisualLogging from '../../ui/visual_logging/visual_logging.js';
+import * as ElementsPanel from '../elements/elements.js';
+import * as NetworkForward from '../network/forward/forward.js';
+import * as NetworkPanel from '../network/network.js';
+import * as SourcesPanel from '../sources/sources.js';
+import * as TimelinePanel from '../timeline/timeline.js';
+import * as TimelineUtils from '../timeline/utils/utils.js';
+import aiAssistancePanelStyles from './aiAssistancePanel.css.js';
+import { ChatView } from './components/ChatView.js';
+import { ExploreWidget } from './components/ExploreWidget.js';
+import { isAiAssistancePatchingEnabled } from './PatchWidget.js';
+const { html } = Lit;
+const AI_ASSISTANCE_SEND_FEEDBACK = 'https://crbug.com/364805393';
+const AI_ASSISTANCE_HELP = 'https://developer.chrome.com/docs/devtools/ai-assistance';
+const SCREENSHOT_QUALITY = 100;
+const SHOW_LOADING_STATE_TIMEOUT = 100;
+const JPEG_MIME_TYPE = 'image/jpeg';
+const UIStrings = {
+    /**
+     *@description AI assistance UI text creating a new chat.
+     */
+    newChat: 'New chat',
+    /**
+     *@description AI assistance UI tooltip text for the help button.
+     */
+    help: 'Help',
+    /**
+     *@description AI assistant UI tooltip text for the settings button (gear icon).
+     */
+    settings: 'Settings',
+    /**
+     *@description AI assistant UI tooltip sending feedback.
+     */
+    sendFeedback: 'Send feedback',
+    /**
+     *@description Announcement text for screen readers when a new chat is created.
+     */
+    newChatCreated: 'New chat created',
+    /**
+     *@description Announcement text for screen readers when the chat is deleted.
+     */
+    chatDeleted: 'Chat deleted',
+    /**
+     *@description AI assistance UI text creating selecting a history entry.
+     */
+    history: 'History',
+    /**
+     *@description AI assistance UI text deleting the current chat session from local history.
+     */
+    deleteChat: 'Delete local chat',
+    /**
+     *@description AI assistance UI text that deletes all local history entries.
+     */
+    clearChatHistory: 'Clear local chats',
+    /**
+     *@description AI assistance UI text explains that he user had no pas conversations.
+     */
+    noPastConversations: 'No past conversations',
+    /**
+     * @description Placeholder text for an inactive text field. When active, it's used for the user's input to the GenAI assistance.
+     */
+    followTheSteps: 'Follow the steps above to ask a question',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForEmptyState: 'This is an experimental AI feature and won\'t always get it right.',
+    /**
+     *@description Notification shown to the user whenever DevTools receives an external request.
+     */
+    externalRequestReceived: '`DevTools` received an external request',
+};
+/*
+* Strings that don't need to be translated at this time.
+*/
+const UIStringsNotTranslate = {
+    /**
+     *@description Announcement text for screen readers when the conversation starts.
+     */
+    answerLoading: 'Answer loading',
+    /**
+     *@description Announcement text for screen readers when the answer comes.
+     */
+    answerReady: 'Answer ready',
+    /**
+     * @description Placeholder text for the input shown when the conversation is blocked because a cross-origin context was selected.
+     */
+    crossOriginError: 'To talk about data from another origin, start a new chat',
+    /**
+     *@description Placeholder text for the chat UI input.
+     */
+    inputPlaceholderForStyling: 'Ask a question about the selected element',
+    /**
+     *@description Placeholder text for the chat UI input.
+     */
+    inputPlaceholderForNetwork: 'Ask a question about the selected network request',
+    /**
+     *@description Placeholder text for the chat UI input.
+     */
+    inputPlaceholderForFile: 'Ask a question about the selected file',
+    /**
+     *@description Placeholder text for the chat UI input.
+     */
+    inputPlaceholderForPerformance: 'Ask a question about the selected item and its call tree',
+    /**
+     *@description Placeholder text for the chat UI input.
+     */
+    inputPlaceholderForPerformanceWithNoRecording: 'Record a performance trace and select an item to ask a question',
+    /**
+     *@description Placeholder text for the chat UI input when there is no context selected.
+     */
+    inputPlaceholderForStylingNoContext: 'Select an element to ask a question',
+    /**
+     *@description Placeholder text for the chat UI input when there is no context selected.
+     */
+    inputPlaceholderForNetworkNoContext: 'Select a network request to ask a question',
+    /**
+     *@description Placeholder text for the chat UI input when there is no context selected.
+     */
+    inputPlaceholderForFileNoContext: 'Select a file to ask a question',
+    /**
+     *@description Placeholder text for the chat UI input when there is no context selected.
+     */
+    inputPlaceholderForPerformanceNoContext: 'Select an item to ask a question',
+    /**
+     *@description Placeholder text for the chat UI input.
+     */
+    inputPlaceholderForPerformanceInsights: 'Ask a question about the selected performance insight',
+    /**
+     *@description Placeholder text for the chat UI input.
+     */
+    inputPlaceholderForPerformanceInsightsNoContext: 'Select a performance insight to ask a question',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForStyling: 'Chat messages and any data the inspected page can access via Web APIs are sent to Google and may be seen by human reviewers to improve this feature. This is an experimental AI feature and won’t always get it right.',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForStylingEnterpriseNoLogging: 'Chat messages and any data the inspected page can access via Web APIs are sent to Google. The content you submit and that is generated by this feature will not be used to improve Google’s AI models. This is an experimental AI feature and won’t always get it right.',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForNetwork: 'Chat messages and the selected network request are sent to Google and may be seen by human reviewers to improve this feature. This is an experimental AI feature and won’t always get it right.',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForNetworkEnterpriseNoLogging: 'Chat messages and the selected network request are sent to Google. The content you submit and that is generated by this feature will not be used to improve Google’s AI models. This is an experimental AI feature and won’t always get it right.',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForFile: 'Chat messages and the selected file are sent to Google and may be seen by human reviewers to improve this feature. This is an experimental AI feature and won\'t always get it right.',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForFileEnterpriseNoLogging: 'Chat messages and the selected file are sent to Google. The content you submit and that is generated by this feature will not be used to improve Google’s AI models. This is an experimental AI feature and won’t always get it right.',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForPerformance: 'Chat messages and trace data from your performance trace are sent to Google and may be seen by human reviewers to improve this feature. This is an experimental AI feature and won\'t always get it right.',
+    /**
+     *@description Disclaimer text right after the chat input.
+     */
+    inputDisclaimerForPerformanceEnterpriseNoLogging: 'Chat messages and data from your performance trace are sent to Google. The content you submit and that is generated by this feature will not be used to improve Google’s AI models. This is an experimental AI feature and won’t always get it right.',
+    /**
+     * @description Message displayed in toast in case of any failures while taking a screenshot of the page.
+     */
+    screenshotFailureMessage: 'Failed to take a screenshot. Please try again.',
+    /**
+     * @description Message displayed in toast in case of any failures while uploading an image file as input.
+     */
+    uploadImageFailureMessage: 'Failed to upload image. Please try again.',
+    /**
+     * @description Error message shown when AI assistance is not enabled in DevTools settings.
+     */
+    enableInSettings: 'For AI features to be available, you need to enable AI assistance in DevTools settings.',
+};
+const str_ = i18n.i18n.registerUIStrings('panels/ai_assistance/AiAssistancePanel.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+const lockedString = i18n.i18n.lockedString;
+function selectedElementFilter(maybeNode) {
+    if (maybeNode) {
+        return maybeNode.nodeType() === Node.ELEMENT_NODE ? maybeNode : null;
+    }
+    return null;
+}
+async function getEmptyStateSuggestions(context, conversationType) {
+    if (context) {
+        const specialSuggestions = await context.getSuggestions();
+        if (specialSuggestions) {
+            return specialSuggestions;
+        }
+    }
+    if (!conversationType) {
+        return [];
+    }
+    switch (conversationType) {
+        case "freestyler" /* AiAssistanceModel.ConversationType.STYLING */:
+            return [
+                { title: 'What can you help me with?', jslogContext: 'styling-default' },
+                { title: 'Why isn’t this element visible?', jslogContext: 'styling-default' },
+                { title: 'How do I center this element?', jslogContext: 'styling-default' },
+            ];
+        case "drjones-file" /* AiAssistanceModel.ConversationType.FILE */:
+            return [
+                { title: 'What does this script do?', jslogContext: 'file-default' },
+                { title: 'Is the script optimized for performance?', jslogContext: 'file-default' },
+                { title: 'Does the script handle user input safely?', jslogContext: 'file-default' },
+            ];
+        case "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */:
+            return [
+                { title: 'Why is this network request taking so long?', jslogContext: 'network-default' },
+                { title: 'Are there any security headers present?', jslogContext: 'network-default' },
+                { title: 'Why is the request failing?', jslogContext: 'network-default' },
+            ];
+        case "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */:
+            return [
+                { title: 'What\'s the purpose of this work?', jslogContext: 'performance-default' },
+                { title: 'Where is time being spent?', jslogContext: 'performance-default' },
+                { title: 'How can I optimize this?', jslogContext: 'performance-default' },
+            ];
+        case "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */:
+            return [
+                { title: 'Help me optimize my page load performance', jslogContext: 'performance-insights-default' },
+            ];
+    }
+}
+function toolbarView(input) {
+    // clang-format off
+    return html `
+    <div class="toolbar-container" role="toolbar" jslog=${VisualLogging.toolbar()}>
+      <devtools-toolbar class="freestyler-left-toolbar" role="presentation">
+      ${input.showChatActions
+        ? html `<devtools-button
+          title=${i18nString(UIStrings.newChat)}
+          aria-label=${i18nString(UIStrings.newChat)}
+          .iconName=${'plus'}
+          .jslogContext=${'freestyler.new-chat'}
+          .variant=${"toolbar" /* Buttons.Button.Variant.TOOLBAR */}
+          @click=${input.onNewChatClick}></devtools-button>
+        <div class="toolbar-divider"></div>
+        <devtools-menu-button
+          title=${i18nString(UIStrings.history)}
+          aria-label=${i18nString(UIStrings.history)}
+          .iconName=${'history'}
+          .jslogContext=${'freestyler.history'}
+          .populateMenuCall=${input.populateHistoryMenu}
+        ></devtools-menu-button>`
+        : Lit.nothing}
+        ${input.showDeleteHistoryAction
+        ? html `<devtools-button
+              title=${i18nString(UIStrings.deleteChat)}
+              aria-label=${i18nString(UIStrings.deleteChat)}
+              .iconName=${'bin'}
+              .jslogContext=${'freestyler.delete'}
+              .variant=${"toolbar" /* Buttons.Button.Variant.TOOLBAR */}
+              @click=${input.onDeleteClick}></devtools-button>`
+        : Lit.nothing}
+      </devtools-toolbar>
+      <devtools-toolbar class="freestyler-right-toolbar" role="presentation">
+        <x-link
+          class="toolbar-feedback-link devtools-link"
+          title=${UIStrings.sendFeedback}
+          href=${AI_ASSISTANCE_SEND_FEEDBACK}
+          jslog=${VisualLogging.link().track({ click: true, keydown: 'Enter|Space' }).context('freestyler.send-feedback')}
+        >${UIStrings.sendFeedback}</x-link>
+        <div class="toolbar-divider"></div>
+        <devtools-button
+          title=${i18nString(UIStrings.help)}
+          aria-label=${i18nString(UIStrings.help)}
+          .iconName=${'help'}
+          .jslogContext=${'freestyler.help'}
+          .variant=${"toolbar" /* Buttons.Button.Variant.TOOLBAR */}
+          @click=${input.onHelpClick}></devtools-button>
+        <devtools-button
+          title=${i18nString(UIStrings.settings)}
+          aria-label=${i18nString(UIStrings.settings)}
+          .iconName=${'gear'}
+          .jslogContext=${'freestyler.settings'}
+          .variant=${"toolbar" /* Buttons.Button.Variant.TOOLBAR */}
+          @click=${input.onSettingsClick}></devtools-button>
+      </devtools-toolbar>
+    </div>
+  `;
+    // clang-format on
+}
+function defaultView(input, output, target) {
+    // clang-format off
+    Lit.render(html `
+      ${toolbarView(input)}
+      <div class="ai-assistance-view-container">
+        ${input.state !== "explore-view" /* ChatViewState.EXPLORE_VIEW */
+        ? html ` <devtools-ai-chat-view
+              .props=${input}
+              ${Lit.Directives.ref((el) => {
+            if (!el || !(el instanceof ChatView)) {
+                return;
+            }
+            output.chatView = el;
+        })}
+            ></devtools-ai-chat-view>`
+        : html `<devtools-widget
+              class="explore"
+              .widgetConfig=${UI.Widget.widgetConfig(ExploreWidget)}
+            ></devtools-widget>`}
+      </div>
+    `, target, { host: input });
+    // clang-format on
+}
+function createNodeContext(node) {
+    if (!node) {
+        return null;
+    }
+    return new AiAssistanceModel.NodeContext(node);
+}
+function createFileContext(file) {
+    if (!file) {
+        return null;
+    }
+    return new AiAssistanceModel.FileContext(file);
+}
+function createRequestContext(request) {
+    if (!request) {
+        return null;
+    }
+    return new AiAssistanceModel.RequestContext(request);
+}
+function createCallTreeContext(callTree) {
+    if (!callTree) {
+        return null;
+    }
+    return new AiAssistanceModel.CallTreeContext(callTree);
+}
+function createPerfInsightContext(insight) {
+    if (!insight) {
+        return null;
+    }
+    return new AiAssistanceModel.InsightContext(insight);
+}
+function agentToConversationType(agent) {
+    if (agent instanceof AiAssistanceModel.StylingAgent) {
+        return "freestyler" /* AiAssistanceModel.ConversationType.STYLING */;
+    }
+    if (agent instanceof AiAssistanceModel.NetworkAgent) {
+        return "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */;
+    }
+    if (agent instanceof AiAssistanceModel.FileAgent) {
+        return "drjones-file" /* AiAssistanceModel.ConversationType.FILE */;
+    }
+    if (agent instanceof AiAssistanceModel.PerformanceAgent) {
+        return "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */;
+    }
+    if (agent instanceof AiAssistanceModel.PerformanceInsightsAgent) {
+        return "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */;
+    }
+    throw new Error('Provided agent does not have a corresponding conversation type');
+}
+async function inspectElementBySelector(selector) {
+    const whitespaceTrimmedQuery = selector.trim();
+    if (!whitespaceTrimmedQuery.length) {
+        return null;
+    }
+    const showUAShadowDOM = Common.Settings.Settings.instance().moduleSetting('show-ua-shadow-dom').get();
+    const domModels = SDK.TargetManager.TargetManager.instance().models(SDK.DOMModel.DOMModel, { scoped: true });
+    const performSearchPromises = domModels.map(domModel => domModel.performSearch(whitespaceTrimmedQuery, showUAShadowDOM));
+    const resultCounts = await Promise.all(performSearchPromises);
+    // If the selector matches multiple times, this returns the first match.
+    const index = resultCounts.findIndex(value => value > 0);
+    if (index >= 0) {
+        return await domModels[index].searchResult(0);
+    }
+    return null;
+}
+async function inspectNetworkRequestByUrl(selector) {
+    const networkManagers = SDK.TargetManager.TargetManager.instance().models(SDK.NetworkManager.NetworkManager, { scoped: true });
+    const results = networkManagers
+        .map(networkManager => {
+        let request = networkManager.requestForURL(Platform.DevToolsPath.urlString `${selector}`);
+        if (!request && selector.at(-1) === '/') {
+            request =
+                networkManager.requestForURL(Platform.DevToolsPath.urlString `${selector.slice(0, -1)}`);
+        }
+        else if (!request && selector.at(-1) !== '/') {
+            request = networkManager.requestForURL(Platform.DevToolsPath.urlString `${selector}/`);
+        }
+        return request;
+    })
+        .filter(req => !!req);
+    const request = results.at(0);
+    return request ?? null;
+}
+let panelInstance;
+export class AiAssistancePanel extends UI.Panel.Panel {
+    constructor(view = defaultView, { aidaClient, aidaAvailability, syncInfo }) {
+        super(AiAssistancePanel.panelName);
+        _AiAssistancePanel_instances.add(this);
+        this.view = view;
+        // NodeJS debugging does not have Elements panel, thus this action might not exist.
+        _AiAssistancePanel_toggleSearchElementAction.set(this, void 0);
+        _AiAssistancePanel_aidaClient.set(this, void 0);
+        _AiAssistancePanel_viewOutput.set(this, {});
+        _AiAssistancePanel_serverSideLoggingEnabled.set(this, isAiAssistanceServerSideLoggingEnabled());
+        _AiAssistancePanel_aiAssistanceEnabledSetting.set(this, void 0);
+        _AiAssistancePanel_changeManager.set(this, new AiAssistanceModel.ChangeManager());
+        _AiAssistancePanel_mutex.set(this, new Common.Mutex.Mutex());
+        _AiAssistancePanel_conversationAgent.set(this, void 0);
+        _AiAssistancePanel_conversation.set(this, void 0);
+        _AiAssistancePanel_historicalConversations.set(this, []);
+        _AiAssistancePanel_selectedFile.set(this, null);
+        _AiAssistancePanel_selectedElement.set(this, null);
+        _AiAssistancePanel_selectedCallTree.set(this, null);
+        _AiAssistancePanel_selectedPerformanceInsight.set(this, null);
+        _AiAssistancePanel_selectedRequest.set(this, null);
+        // Messages displayed in the `ChatView` component.
+        _AiAssistancePanel_messages.set(this, []);
+        // Indicates whether the new conversation context is blocked due to cross-origin restrictions.
+        // This happens when the conversation's context has a different
+        // origin than the selected context.
+        _AiAssistancePanel_blockedByCrossOrigin.set(this, false);
+        // Whether the UI should show loading or not.
+        _AiAssistancePanel_isLoading.set(this, false);
+        // Selected conversation context. The reason we keep this as a
+        // state field rather than using `#getConversationContext` is that,
+        // there is a case where the context differs from the selectedElement (or other selected context type).
+        // Specifically, it allows restoring the previous context when a new selection is cross-origin.
+        // See `#onContextSelectionChanged` for details.
+        _AiAssistancePanel_selectedContext.set(this, null);
+        // Stores the availability status of the `AidaClient` and the reason for unavailability, if any.
+        _AiAssistancePanel_aidaAvailability.set(this, void 0);
+        // Info of the currently logged in user.
+        _AiAssistancePanel_userInfo.set(this, void 0);
+        _AiAssistancePanel_imageInput.set(this, void 0);
+        // Used to disable send button when there is not text input.
+        _AiAssistancePanel_isTextInputEmpty.set(this, true);
+        _AiAssistancePanel_timelinePanelInstance.set(this, null);
+        _AiAssistancePanel_handleAidaAvailabilityChange.set(this, async () => {
+            const currentAidaAvailability = await Host.AidaClient.AidaClient.checkAccessPreconditions();
+            if (currentAidaAvailability !== __classPrivateFieldGet(this, _AiAssistancePanel_aidaAvailability, "f")) {
+                __classPrivateFieldSet(this, _AiAssistancePanel_aidaAvailability, currentAidaAvailability, "f");
+                const syncInfo = await new Promise(resolve => Host.InspectorFrontendHost.InspectorFrontendHostInstance.getSyncInformation(resolve));
+                __classPrivateFieldSet(this, _AiAssistancePanel_userInfo, {
+                    accountImage: syncInfo.accountImage,
+                    accountFullName: syncInfo.accountFullName,
+                }, "f");
+                this.requestUpdate();
+            }
+        });
+        _AiAssistancePanel_handleDOMNodeFlavorChange.set(this, (ev) => {
+            if (__classPrivateFieldGet(this, _AiAssistancePanel_selectedElement, "f")?.getItem() === ev.data) {
+                return;
+            }
+            __classPrivateFieldSet(this, _AiAssistancePanel_selectedElement, createNodeContext(selectedElementFilter(ev.data)), "f");
+            __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f"));
+        });
+        _AiAssistancePanel_handleDOMNodeAttrChange.set(this, (ev) => {
+            if (__classPrivateFieldGet(this, _AiAssistancePanel_selectedElement, "f")?.getItem() === ev.data.node) {
+                if (ev.data.name === 'class' || ev.data.name === 'id') {
+                    this.requestUpdate();
+                }
+            }
+        });
+        _AiAssistancePanel_handleNetworkRequestFlavorChange.set(this, (ev) => {
+            if (__classPrivateFieldGet(this, _AiAssistancePanel_selectedRequest, "f")?.getItem() === ev.data) {
+                return;
+            }
+            __classPrivateFieldSet(this, _AiAssistancePanel_selectedRequest, Boolean(ev.data) ? new AiAssistanceModel.RequestContext(ev.data) : null, "f");
+            __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f"));
+        });
+        _AiAssistancePanel_handleTraceEntryNodeFlavorChange.set(this, (ev) => {
+            if (__classPrivateFieldGet(this, _AiAssistancePanel_selectedCallTree, "f")?.getItem() === ev.data) {
+                return;
+            }
+            __classPrivateFieldSet(this, _AiAssistancePanel_selectedCallTree, Boolean(ev.data) ? new AiAssistanceModel.CallTreeContext(ev.data) : null, "f");
+            __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f"));
+        });
+        _AiAssistancePanel_handlePerfInsightFlavorChange.set(this, (ev) => {
+            if (__classPrivateFieldGet(this, _AiAssistancePanel_selectedPerformanceInsight, "f")?.getItem() === ev.data) {
+                return;
+            }
+            __classPrivateFieldSet(this, _AiAssistancePanel_selectedPerformanceInsight, Boolean(ev.data) ? new AiAssistanceModel.InsightContext(ev.data) : null, "f");
+            __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f"));
+        });
+        _AiAssistancePanel_handleUISourceCodeFlavorChange.set(this, (ev) => {
+            const newFile = ev.data;
+            if (!newFile) {
+                return;
+            }
+            if (__classPrivateFieldGet(this, _AiAssistancePanel_selectedFile, "f")?.getItem() === newFile) {
+                return;
+            }
+            __classPrivateFieldSet(this, _AiAssistancePanel_selectedFile, new AiAssistanceModel.FileContext(ev.data), "f");
+            __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f"));
+        });
+        _AiAssistancePanel_runAbortController.set(this, new AbortController());
+        this.registerRequiredCSS(aiAssistancePanelStyles);
+        __classPrivateFieldSet(this, _AiAssistancePanel_aiAssistanceEnabledSetting, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getAiAssistanceEnabledSetting).call(this), "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_aidaClient, aidaClient, "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_aidaAvailability, aidaAvailability, "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_userInfo, {
+            accountImage: syncInfo.accountImage,
+            accountFullName: syncInfo.accountFullName,
+        }, "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_historicalConversations, AiAssistanceModel.AiHistoryStorage.instance().getHistory().map(item => {
+            return new AiAssistanceModel.Conversation(item.type, item.history, item.id, true, item.isExternal);
+        }), "f");
+        if (UI.ActionRegistry.ActionRegistry.instance().hasAction('elements.toggle-element-search')) {
+            __classPrivateFieldSet(this, _AiAssistancePanel_toggleSearchElementAction, UI.ActionRegistry.ActionRegistry.instance().getAction('elements.toggle-element-search'), "f");
+        }
+        AiAssistanceModel.AiHistoryStorage.instance().addEventListener("AiHistoryDeleted" /* AiAssistanceModel.Events.HISTORY_DELETED */, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_onHistoryDeleted), this);
+    }
+    static async instance(opts = { forceNew: null }) {
+        const { forceNew } = opts;
+        if (!panelInstance || forceNew) {
+            const aidaClient = new Host.AidaClient.AidaClient();
+            const syncInfoPromise = new Promise(resolve => Host.InspectorFrontendHost.InspectorFrontendHostInstance.getSyncInformation(resolve));
+            const [aidaAvailability, syncInfo] = await Promise.all([Host.AidaClient.AidaClient.checkAccessPreconditions(), syncInfoPromise]);
+            panelInstance = new AiAssistancePanel(defaultView, { aidaClient, aidaAvailability, syncInfo });
+        }
+        return panelInstance;
+    }
+    wasShown() {
+        super.wasShown();
+        __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.restoreScrollPosition();
+        __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.focusTextInput();
+        void __classPrivateFieldGet(this, _AiAssistancePanel_handleAidaAvailabilityChange, "f").call(this);
+        __classPrivateFieldSet(this, _AiAssistancePanel_selectedElement, createNodeContext(selectedElementFilter(UI.Context.Context.instance().flavor(SDK.DOMModel.DOMNode))), "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_selectedRequest, createRequestContext(UI.Context.Context.instance().flavor(SDK.NetworkRequest.NetworkRequest)), "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_selectedCallTree, createCallTreeContext(UI.Context.Context.instance().flavor(TimelineUtils.AICallTree.AICallTree)), "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_selectedPerformanceInsight, createPerfInsightContext(UI.Context.Context.instance().flavor(TimelineUtils.InsightAIContext.ActiveInsight)), "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_selectedFile, createFileContext(UI.Context.Context.instance().flavor(Workspace.UISourceCode.UISourceCode)), "f");
+        __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f"));
+        __classPrivateFieldGet(this, _AiAssistancePanel_aiAssistanceEnabledSetting, "f")?.addChangeListener(this.requestUpdate, this);
+        Host.AidaClient.HostConfigTracker.instance().addEventListener("aidaAvailabilityChanged" /* Host.AidaClient.Events.AIDA_AVAILABILITY_CHANGED */, __classPrivateFieldGet(this, _AiAssistancePanel_handleAidaAvailabilityChange, "f"));
+        __classPrivateFieldGet(this, _AiAssistancePanel_toggleSearchElementAction, "f")?.addEventListener("Toggled" /* UI.ActionRegistration.Events.TOGGLED */, this.requestUpdate, this);
+        UI.Context.Context.instance().addFlavorChangeListener(SDK.DOMModel.DOMNode, __classPrivateFieldGet(this, _AiAssistancePanel_handleDOMNodeFlavorChange, "f"));
+        UI.Context.Context.instance().addFlavorChangeListener(SDK.NetworkRequest.NetworkRequest, __classPrivateFieldGet(this, _AiAssistancePanel_handleNetworkRequestFlavorChange, "f"));
+        UI.Context.Context.instance().addFlavorChangeListener(TimelineUtils.AICallTree.AICallTree, __classPrivateFieldGet(this, _AiAssistancePanel_handleTraceEntryNodeFlavorChange, "f"));
+        UI.Context.Context.instance().addFlavorChangeListener(Workspace.UISourceCode.UISourceCode, __classPrivateFieldGet(this, _AiAssistancePanel_handleUISourceCodeFlavorChange, "f"));
+        UI.Context.Context.instance().addFlavorChangeListener(TimelineUtils.InsightAIContext.ActiveInsight, __classPrivateFieldGet(this, _AiAssistancePanel_handlePerfInsightFlavorChange, "f"));
+        UI.Context.Context.instance().addFlavorChangeListener(ElementsPanel.ElementsPanel.ElementsPanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        UI.Context.Context.instance().addFlavorChangeListener(NetworkPanel.NetworkPanel.NetworkPanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        UI.Context.Context.instance().addFlavorChangeListener(SourcesPanel.SourcesPanel.SourcesPanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        UI.Context.Context.instance().addFlavorChangeListener(TimelinePanel.TimelinePanel.TimelinePanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrModified, __classPrivateFieldGet(this, _AiAssistancePanel_handleDOMNodeAttrChange, "f"), this);
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrRemoved, __classPrivateFieldGet(this, _AiAssistancePanel_handleDOMNodeAttrChange, "f"), this);
+        SDK.TargetManager.TargetManager.instance().addModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.PrimaryPageChanged, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_onPrimaryPageChanged), this);
+        // Listen to changes in the Timeline Panel state. We also call the
+        // function immediately in case the Performance panel is already shown
+        // when AI Assistance is loaded.
+        UI.Context.Context.instance().addFlavorChangeListener(TimelinePanel.TimelinePanel.TimelinePanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_bindTimelineTraceListener), this);
+        __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_bindTimelineTraceListener).call(this);
+        Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistancePanelOpened);
+    }
+    willHide() {
+        __classPrivateFieldGet(this, _AiAssistancePanel_aiAssistanceEnabledSetting, "f")?.removeChangeListener(this.requestUpdate, this);
+        Host.AidaClient.HostConfigTracker.instance().removeEventListener("aidaAvailabilityChanged" /* Host.AidaClient.Events.AIDA_AVAILABILITY_CHANGED */, __classPrivateFieldGet(this, _AiAssistancePanel_handleAidaAvailabilityChange, "f"));
+        __classPrivateFieldGet(this, _AiAssistancePanel_toggleSearchElementAction, "f")?.removeEventListener("Toggled" /* UI.ActionRegistration.Events.TOGGLED */, this.requestUpdate, this);
+        UI.Context.Context.instance().removeFlavorChangeListener(SDK.DOMModel.DOMNode, __classPrivateFieldGet(this, _AiAssistancePanel_handleDOMNodeFlavorChange, "f"));
+        UI.Context.Context.instance().removeFlavorChangeListener(SDK.NetworkRequest.NetworkRequest, __classPrivateFieldGet(this, _AiAssistancePanel_handleNetworkRequestFlavorChange, "f"));
+        UI.Context.Context.instance().removeFlavorChangeListener(TimelineUtils.AICallTree.AICallTree, __classPrivateFieldGet(this, _AiAssistancePanel_handleTraceEntryNodeFlavorChange, "f"));
+        UI.Context.Context.instance().removeFlavorChangeListener(TimelineUtils.InsightAIContext.ActiveInsight, __classPrivateFieldGet(this, _AiAssistancePanel_handlePerfInsightFlavorChange, "f"));
+        UI.Context.Context.instance().removeFlavorChangeListener(Workspace.UISourceCode.UISourceCode, __classPrivateFieldGet(this, _AiAssistancePanel_handleUISourceCodeFlavorChange, "f"));
+        UI.Context.Context.instance().removeFlavorChangeListener(ElementsPanel.ElementsPanel.ElementsPanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        UI.Context.Context.instance().removeFlavorChangeListener(NetworkPanel.NetworkPanel.NetworkPanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        UI.Context.Context.instance().removeFlavorChangeListener(SourcesPanel.SourcesPanel.SourcesPanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        UI.Context.Context.instance().removeFlavorChangeListener(TimelinePanel.TimelinePanel.TimelinePanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded), this);
+        UI.Context.Context.instance().removeFlavorChangeListener(TimelinePanel.TimelinePanel.TimelinePanel, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_bindTimelineTraceListener), this);
+        SDK.TargetManager.TargetManager.instance().removeModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrModified, __classPrivateFieldGet(this, _AiAssistancePanel_handleDOMNodeAttrChange, "f"), this);
+        SDK.TargetManager.TargetManager.instance().removeModelListener(SDK.DOMModel.DOMModel, SDK.DOMModel.Events.AttrRemoved, __classPrivateFieldGet(this, _AiAssistancePanel_handleDOMNodeAttrChange, "f"), this);
+        SDK.TargetManager.TargetManager.instance().removeModelListener(SDK.ResourceTreeModel.ResourceTreeModel, SDK.ResourceTreeModel.Events.PrimaryPageChanged, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_onPrimaryPageChanged), this);
+        if (__classPrivateFieldGet(this, _AiAssistancePanel_timelinePanelInstance, "f")) {
+            __classPrivateFieldGet(this, _AiAssistancePanel_timelinePanelInstance, "f").removeEventListener("IsViewingTrace" /* TimelinePanel.TimelinePanel.Events.IS_VIEWING_TRACE */, this.requestUpdate, this);
+            __classPrivateFieldSet(this, _AiAssistancePanel_timelinePanelInstance, null, "f");
+        }
+    }
+    async performUpdate() {
+        const emptyStateSuggestions = await getEmptyStateSuggestions(__classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f"), __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.type);
+        this.view({
+            state: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getChatUiState).call(this),
+            blockedByCrossOrigin: __classPrivateFieldGet(this, _AiAssistancePanel_blockedByCrossOrigin, "f"),
+            aidaAvailability: __classPrivateFieldGet(this, _AiAssistancePanel_aidaAvailability, "f"),
+            isLoading: __classPrivateFieldGet(this, _AiAssistancePanel_isLoading, "f"),
+            messages: __classPrivateFieldGet(this, _AiAssistancePanel_messages, "f"),
+            selectedContext: __classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f"),
+            conversationType: __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.type,
+            isReadOnly: __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.isReadOnly ?? false,
+            changeSummary: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getChangeSummary).call(this),
+            inspectElementToggled: __classPrivateFieldGet(this, _AiAssistancePanel_toggleSearchElementAction, "f")?.toggled() ?? false,
+            userInfo: __classPrivateFieldGet(this, _AiAssistancePanel_userInfo, "f"),
+            canShowFeedbackForm: __classPrivateFieldGet(this, _AiAssistancePanel_serverSideLoggingEnabled, "f"),
+            multimodalInputEnabled: isAiAssistanceMultimodalInputEnabled() &&
+                __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.type === "freestyler" /* AiAssistanceModel.ConversationType.STYLING */,
+            imageInput: __classPrivateFieldGet(this, _AiAssistancePanel_imageInput, "f"),
+            showDeleteHistoryAction: Boolean(__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f") && !__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").isEmpty),
+            showChatActions: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_shouldShowChatActions).call(this),
+            isTextInputDisabled: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_isTextInputDisabled).call(this),
+            emptyStateSuggestions,
+            inputPlaceholder: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getChatInputPlaceholder).call(this),
+            disclaimerText: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getDisclaimerText).call(this),
+            isTextInputEmpty: __classPrivateFieldGet(this, _AiAssistancePanel_isTextInputEmpty, "f"),
+            changeManager: __classPrivateFieldGet(this, _AiAssistancePanel_changeManager, "f"),
+            uploadImageInputEnabled: isAiAssistanceMultimodalUploadInputEnabled() &&
+                __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.type === "freestyler" /* AiAssistanceModel.ConversationType.STYLING */,
+            onNewChatClick: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleNewChatRequest).bind(this),
+            populateHistoryMenu: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_populateHistoryMenu).bind(this),
+            onDeleteClick: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_onDeleteClicked).bind(this),
+            onHelpClick: () => {
+                UI.UIUtils.openInNewTab(AI_ASSISTANCE_HELP);
+            },
+            onSettingsClick: () => {
+                void UI.ViewManager.ViewManager.instance().showView('chrome-ai');
+            },
+            onTextSubmit: async (text, imageInput, multimodalInputType) => {
+                __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, undefined, "f");
+                __classPrivateFieldSet(this, _AiAssistancePanel_isTextInputEmpty, true, "f");
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceQuerySubmitted);
+                await __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_startConversation).call(this, text, imageInput, multimodalInputType);
+            },
+            onInspectElementClick: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleSelectElementClick).bind(this),
+            onFeedbackSubmit: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleFeedbackSubmit).bind(this),
+            onCancelClick: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_cancel).bind(this),
+            onContextClick: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleContextClick).bind(this),
+            onNewConversation: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleNewChatRequest).bind(this),
+            onTakeScreenshot: isAiAssistanceMultimodalInputEnabled() ? __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleTakeScreenshot).bind(this) : undefined,
+            onRemoveImageInput: isAiAssistanceMultimodalInputEnabled() ? __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleRemoveImageInput).bind(this) :
+                undefined,
+            onTextInputChange: __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleTextInputChange).bind(this),
+            onLoadImage: isAiAssistanceMultimodalUploadInputEnabled() ? __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_handleLoadImage).bind(this) : undefined,
+        }, __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f"), this.contentElement);
+    }
+    handleAction(actionId) {
+        if (__classPrivateFieldGet(this, _AiAssistancePanel_isLoading, "f")) {
+            // If running some queries already, focus the input with the abort
+            // button and do nothing.
+            __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.focusTextInput();
+            return;
+        }
+        let targetConversationType;
+        switch (actionId) {
+            case 'freestyler.elements-floating-button': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromElementsPanelFloatingButton);
+                targetConversationType = "freestyler" /* AiAssistanceModel.ConversationType.STYLING */;
+                break;
+            }
+            case 'freestyler.element-panel-context': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromElementsPanel);
+                targetConversationType = "freestyler" /* AiAssistanceModel.ConversationType.STYLING */;
+                break;
+            }
+            case 'drjones.network-floating-button': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromNetworkPanelFloatingButton);
+                targetConversationType = "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */;
+                break;
+            }
+            case 'drjones.network-panel-context': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromNetworkPanel);
+                targetConversationType = "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */;
+                break;
+            }
+            case 'drjones.performance-panel-context': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromPerformancePanel);
+                targetConversationType = "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */;
+                break;
+            }
+            case 'drjones.performance-insight-context': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromPerformanceInsight);
+                targetConversationType = "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */;
+                break;
+            }
+            case 'drjones.sources-floating-button': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromSourcesPanelFloatingButton);
+                targetConversationType = "drjones-file" /* AiAssistanceModel.ConversationType.FILE */;
+                break;
+            }
+            case 'drjones.sources-panel-context': {
+                Host.userMetrics.actionTaken(Host.UserMetrics.Action.AiAssistanceOpenedFromSourcesPanel);
+                targetConversationType = "drjones-file" /* AiAssistanceModel.ConversationType.FILE */;
+                break;
+            }
+        }
+        if (!targetConversationType) {
+            return;
+        }
+        let agent = __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f");
+        if (!__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f") || !__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f") || __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").type !== targetConversationType ||
+            __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.isEmpty || targetConversationType === "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */) {
+            agent = __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_createAgent).call(this, targetConversationType);
+        }
+        __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, agent);
+        __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.focusTextInput();
+    }
+    /**
+     * Handles an external request using the given prompt and uses the
+     * conversation type to use the correct agent. Note that the `selector` param
+     * is contextual; for styling it is a literal CSS selector, but for
+     * Performance Insights it is the name of the Insight that forms the
+     * context of the conversation.
+     */
+    async handleExternalRequest(parameters) {
+        try {
+            Snackbars.Snackbar.Snackbar.show({ message: i18nString(UIStrings.externalRequestReceived) });
+            const disabledReasons = AiAssistanceModel.getDisabledReasons(__classPrivateFieldGet(this, _AiAssistancePanel_aidaAvailability, "f"));
+            const aiAssistanceSetting = __classPrivateFieldGet(this, _AiAssistancePanel_aiAssistanceEnabledSetting, "f")?.getIfNotDisabled();
+            if (!aiAssistanceSetting) {
+                disabledReasons.push(lockedString(UIStringsNotTranslate.enableInSettings));
+            }
+            if (disabledReasons.length > 0) {
+                throw new Error(disabledReasons.join(' '));
+            }
+            void VisualLogging.logFunctionCall(`start-conversation-${parameters.conversationType}`, 'external');
+            switch (parameters.conversationType) {
+                case "freestyler" /* AiAssistanceModel.ConversationType.STYLING */:
+                    return await this.handleExternalStylingRequest(parameters.prompt, parameters.selector);
+                case "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */:
+                    if (!parameters.insightTitle) {
+                        throw new Error('The insightTitle parameter is required for debugging a Performance Insight.');
+                    }
+                    return await this.handleExternalPerformanceInsightsRequest(parameters.prompt, parameters.insightTitle);
+                case "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */:
+                    if (!parameters.requestUrl) {
+                        throw new Error('The url is required for debugging a network request.');
+                    }
+                    return await this.handleExternalNetworkRequest(parameters.prompt, parameters.requestUrl);
+            }
+        }
+        catch (error) {
+            // Puppeteer would append the stack trace to the error message. Callers of
+            // `handleExternalRequest` have no use for the stack trace.
+            console.error(error);
+            error.stack = '';
+            throw error;
+        }
+    }
+    async handleExternalPerformanceInsightsRequest(prompt, insightTitle) {
+        const insightsAgent = __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_createAgent).call(this, "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */);
+        const externalConversation = new AiAssistanceModel.Conversation(agentToConversationType(insightsAgent), [], insightsAgent.id, 
+        /* isReadOnly */ true, 
+        /* isExternal */ true);
+        __classPrivateFieldGet(this, _AiAssistancePanel_historicalConversations, "f").push(externalConversation);
+        const timelinePanel = TimelinePanel.TimelinePanel.TimelinePanel.instance();
+        const insightOrError = await TimelinePanel.ExternalRequests.getInsightToDebug(timelinePanel.model, insightTitle);
+        if ('error' in insightOrError) {
+            return {
+                response: insightOrError.error,
+                devToolsLogs: [],
+            };
+        }
+        const selectedContext = createPerfInsightContext(insightOrError.insight);
+        const runner = insightsAgent.run(prompt, { selected: selectedContext });
+        const devToolsLogs = [];
+        for await (const data of runner) {
+            // We don't want to save partial responses to the conversation history.
+            if (data.type !== "answer" /* AiAssistanceModel.ResponseType.ANSWER */ || data.complete) {
+                void externalConversation.addHistoryItem(data);
+                devToolsLogs.push(data);
+            }
+            if (data.type === "answer" /* AiAssistanceModel.ResponseType.ANSWER */ && data.complete) {
+                return { response: data.text, devToolsLogs };
+            }
+        }
+        throw new Error('Something went wrong. No answer was generated.');
+    }
+    async handleExternalStylingRequest(prompt, selector = 'body') {
+        const stylingAgent = __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_createAgent).call(this, "freestyler" /* AiAssistanceModel.ConversationType.STYLING */);
+        const externalConversation = new AiAssistanceModel.Conversation(agentToConversationType(stylingAgent), [], stylingAgent.id, 
+        /* isReadOnly */ true, 
+        /* isExternal */ true);
+        __classPrivateFieldGet(this, _AiAssistancePanel_historicalConversations, "f").push(externalConversation);
+        const node = await inspectElementBySelector(selector);
+        if (node) {
+            await node.setAsInspectedNode();
+        }
+        const runner = stylingAgent.run(prompt, {
+            selected: createNodeContext(node),
+        });
+        const devToolsLogs = [];
+        for await (const data of runner) {
+            // We don't want to save partial responses to the conversation history.
+            if (data.type !== "answer" /* AiAssistanceModel.ResponseType.ANSWER */ || data.complete) {
+                void externalConversation.addHistoryItem(data);
+                devToolsLogs.push(data);
+            }
+            if (data.type === "side-effect" /* AiAssistanceModel.ResponseType.SIDE_EFFECT */) {
+                data.confirm(true);
+            }
+            if (data.type === "answer" /* AiAssistanceModel.ResponseType.ANSWER */ && data.complete) {
+                return { response: data.text, devToolsLogs };
+            }
+        }
+        throw new Error('Something went wrong. No answer was generated.');
+    }
+    async handleExternalNetworkRequest(prompt, requestUrl) {
+        const networkAgent = __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_createAgent).call(this, "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */);
+        const externalConversation = new AiAssistanceModel.Conversation(agentToConversationType(networkAgent), [], networkAgent.id, 
+        /* isReadOnly */ true, 
+        /* isExternal */ true);
+        __classPrivateFieldGet(this, _AiAssistancePanel_historicalConversations, "f").push(externalConversation);
+        const request = await inspectNetworkRequestByUrl(requestUrl);
+        if (!request) {
+            throw new Error(`Can't find request with the given selector ${requestUrl}`);
+        }
+        const runner = networkAgent.run(prompt, {
+            selected: createRequestContext(request),
+        });
+        const devToolsLogs = [];
+        for await (const data of runner) {
+            // We don't want to save partial responses to the conversation history.
+            if (data.type !== "answer" /* AiAssistanceModel.ResponseType.ANSWER */ || data.complete) {
+                void externalConversation.addHistoryItem(data);
+                devToolsLogs.push(data);
+            }
+            if (data.type === "side-effect" /* AiAssistanceModel.ResponseType.SIDE_EFFECT */) {
+                data.confirm(true);
+            }
+            if (data.type === "answer" /* AiAssistanceModel.ResponseType.ANSWER */ && data.complete) {
+                return { response: data.text, devToolsLogs };
+            }
+        }
+        throw new Error('Something went wrong. No answer was generated.');
+    }
+}
+_AiAssistancePanel_toggleSearchElementAction = new WeakMap(), _AiAssistancePanel_aidaClient = new WeakMap(), _AiAssistancePanel_viewOutput = new WeakMap(), _AiAssistancePanel_serverSideLoggingEnabled = new WeakMap(), _AiAssistancePanel_aiAssistanceEnabledSetting = new WeakMap(), _AiAssistancePanel_changeManager = new WeakMap(), _AiAssistancePanel_mutex = new WeakMap(), _AiAssistancePanel_conversationAgent = new WeakMap(), _AiAssistancePanel_conversation = new WeakMap(), _AiAssistancePanel_historicalConversations = new WeakMap(), _AiAssistancePanel_selectedFile = new WeakMap(), _AiAssistancePanel_selectedElement = new WeakMap(), _AiAssistancePanel_selectedCallTree = new WeakMap(), _AiAssistancePanel_selectedPerformanceInsight = new WeakMap(), _AiAssistancePanel_selectedRequest = new WeakMap(), _AiAssistancePanel_messages = new WeakMap(), _AiAssistancePanel_blockedByCrossOrigin = new WeakMap(), _AiAssistancePanel_isLoading = new WeakMap(), _AiAssistancePanel_selectedContext = new WeakMap(), _AiAssistancePanel_aidaAvailability = new WeakMap(), _AiAssistancePanel_userInfo = new WeakMap(), _AiAssistancePanel_imageInput = new WeakMap(), _AiAssistancePanel_isTextInputEmpty = new WeakMap(), _AiAssistancePanel_timelinePanelInstance = new WeakMap(), _AiAssistancePanel_handleAidaAvailabilityChange = new WeakMap(), _AiAssistancePanel_handleDOMNodeFlavorChange = new WeakMap(), _AiAssistancePanel_handleDOMNodeAttrChange = new WeakMap(), _AiAssistancePanel_handleNetworkRequestFlavorChange = new WeakMap(), _AiAssistancePanel_handleTraceEntryNodeFlavorChange = new WeakMap(), _AiAssistancePanel_handlePerfInsightFlavorChange = new WeakMap(), _AiAssistancePanel_handleUISourceCodeFlavorChange = new WeakMap(), _AiAssistancePanel_runAbortController = new WeakMap(), _AiAssistancePanel_instances = new WeakSet(), _AiAssistancePanel_getChatUiState = function _AiAssistancePanel_getChatUiState() {
+    const blockedByAge = Root.Runtime.hostConfig.aidaAvailability?.blockedByAge === true;
+    // Special case due to the way its handled downstream quirks
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_aidaAvailability, "f") !== "available" /* Host.AidaClient.AidaAccessPreconditions.AVAILABLE */) {
+        return "chat-view" /* ChatViewState.CHAT_VIEW */;
+    }
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_aiAssistanceEnabledSetting, "f")?.getIfNotDisabled() || blockedByAge) {
+        return "consent-view" /* ChatViewState.CONSENT_VIEW */;
+    }
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.type) {
+        return "chat-view" /* ChatViewState.CHAT_VIEW */;
+    }
+    return "explore-view" /* ChatViewState.EXPLORE_VIEW */;
+}, _AiAssistancePanel_getAiAssistanceEnabledSetting = function _AiAssistancePanel_getAiAssistanceEnabledSetting() {
+    try {
+        return Common.Settings.moduleSetting('ai-assistance-enabled');
+    }
+    catch {
+        return;
+    }
+}, _AiAssistancePanel_createAgent = function _AiAssistancePanel_createAgent(conversationType) {
+    const options = {
+        aidaClient: __classPrivateFieldGet(this, _AiAssistancePanel_aidaClient, "f"),
+        serverSideLoggingEnabled: __classPrivateFieldGet(this, _AiAssistancePanel_serverSideLoggingEnabled, "f"),
+    };
+    let agent;
+    switch (conversationType) {
+        case "freestyler" /* AiAssistanceModel.ConversationType.STYLING */: {
+            agent = new AiAssistanceModel.StylingAgent({
+                ...options,
+                changeManager: __classPrivateFieldGet(this, _AiAssistancePanel_changeManager, "f"),
+            });
+            if (isAiAssistanceStylingWithFunctionCallingEnabled()) {
+                agent = new AiAssistanceModel.StylingAgentWithFunctionCalling({
+                    ...options,
+                    changeManager: __classPrivateFieldGet(this, _AiAssistancePanel_changeManager, "f"),
+                });
+            }
+            break;
+        }
+        case "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */: {
+            agent = new AiAssistanceModel.NetworkAgent(options);
+            break;
+        }
+        case "drjones-file" /* AiAssistanceModel.ConversationType.FILE */: {
+            agent = new AiAssistanceModel.FileAgent(options);
+            break;
+        }
+        case "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */: {
+            agent = new AiAssistanceModel.PerformanceAgent(options);
+            break;
+        }
+        case "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */: {
+            agent = new AiAssistanceModel.PerformanceInsightsAgent(options);
+            break;
+        }
+    }
+    return agent;
+}, _AiAssistancePanel_bindTimelineTraceListener = function _AiAssistancePanel_bindTimelineTraceListener() {
+    const timelinePanel = UI.Context.Context.instance().flavor(TimelinePanel.TimelinePanel.TimelinePanel);
+    // Avoid binding multiple times.
+    if (timelinePanel === __classPrivateFieldGet(this, _AiAssistancePanel_timelinePanelInstance, "f")) {
+        return;
+    }
+    // Ensure we clear up any listener from the old TimelinePanel instance.
+    __classPrivateFieldGet(this, _AiAssistancePanel_timelinePanelInstance, "f")?.removeEventListener("IsViewingTrace" /* TimelinePanel.TimelinePanel.Events.IS_VIEWING_TRACE */, this.requestUpdate, this);
+    __classPrivateFieldSet(this, _AiAssistancePanel_timelinePanelInstance, timelinePanel, "f");
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_timelinePanelInstance, "f")) {
+        __classPrivateFieldGet(this, _AiAssistancePanel_timelinePanelInstance, "f").addEventListener("IsViewingTrace" /* TimelinePanel.TimelinePanel.Events.IS_VIEWING_TRACE */, this.requestUpdate, this);
+    }
+}, _AiAssistancePanel_selectDefaultAgentIfNeeded = function _AiAssistancePanel_selectDefaultAgentIfNeeded() {
+    // If there already is an agent and if it is not empty,
+    // we don't automatically change the agent. In addition to this,
+    // we don't change the current agent when there is a message in flight.
+    if ((__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f") && __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f") && !__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").isEmpty) || __classPrivateFieldGet(this, _AiAssistancePanel_isLoading, "f")) {
+        return;
+    }
+    const { hostConfig } = Root.Runtime;
+    const isElementsPanelVisible = Boolean(UI.Context.Context.instance().flavor(ElementsPanel.ElementsPanel.ElementsPanel));
+    const isNetworkPanelVisible = Boolean(UI.Context.Context.instance().flavor(NetworkPanel.NetworkPanel.NetworkPanel));
+    const isSourcesPanelVisible = Boolean(UI.Context.Context.instance().flavor(SourcesPanel.SourcesPanel.SourcesPanel));
+    const isPerformancePanelVisible = Boolean(UI.Context.Context.instance().flavor(TimelinePanel.TimelinePanel.TimelinePanel));
+    // Check if the user has an insight expanded in the performance panel sidebar.
+    // If they have, we default to the Insights agent; otherwise we fallback to
+    // the regular Performance agent.
+    // Note that we do not listen to this flavor changing; this code is here to
+    // ensure that by default we do not pick the Insights agent if the user has
+    // just imported a trace and not done anything else. It doesn't make sense
+    // to select the Insights AI agent in that case.
+    const userHasExpandedPerfInsight = Boolean(UI.Context.Context.instance().flavor(TimelinePanel.TimelinePanel.SelectedInsight));
+    let targetConversationType = undefined;
+    if (isElementsPanelVisible && hostConfig.devToolsFreestyler?.enabled) {
+        targetConversationType = "freestyler" /* AiAssistanceModel.ConversationType.STYLING */;
+    }
+    else if (isNetworkPanelVisible && hostConfig.devToolsAiAssistanceNetworkAgent?.enabled) {
+        targetConversationType = "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */;
+    }
+    else if (isSourcesPanelVisible && hostConfig.devToolsAiAssistanceFileAgent?.enabled) {
+        targetConversationType = "drjones-file" /* AiAssistanceModel.ConversationType.FILE */;
+    }
+    else if (isPerformancePanelVisible && hostConfig.devToolsAiAssistancePerformanceAgent?.enabled &&
+        hostConfig.devToolsAiAssistancePerformanceAgent?.insightsEnabled && userHasExpandedPerfInsight) {
+        targetConversationType = "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */;
+    }
+    else if (isPerformancePanelVisible && hostConfig.devToolsAiAssistancePerformanceAgent?.enabled) {
+        targetConversationType = "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */;
+    }
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.type === targetConversationType) {
+        // The above if makes sure even if we have an active agent it's empty
+        // So we can just reuse it
+        return;
+    }
+    const agent = targetConversationType ? __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_createAgent).call(this, targetConversationType) : undefined;
+    __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, agent);
+}, _AiAssistancePanel_updateConversationState = function _AiAssistancePanel_updateConversationState(input) {
+    const agent = input instanceof AiAssistanceModel.AiAgent ? input : undefined;
+    const conversation = input instanceof AiAssistanceModel.Conversation ? input : undefined;
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f") !== agent) {
+        // Cancel any previous conversation
+        __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_cancel).call(this);
+        __classPrivateFieldSet(this, _AiAssistancePanel_messages, [], "f");
+        __classPrivateFieldSet(this, _AiAssistancePanel_isLoading, false, "f");
+        __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.archiveConversation();
+        __classPrivateFieldSet(this, _AiAssistancePanel_conversationAgent, agent, "f");
+        // If we get a new agent we need to
+        // create a new conversation along side it
+        if (agent) {
+            __classPrivateFieldSet(this, _AiAssistancePanel_conversation, new AiAssistanceModel.Conversation(agentToConversationType(agent), [], agent.id, false), "f");
+            __classPrivateFieldGet(this, _AiAssistancePanel_historicalConversations, "f").push(__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f"));
+        }
+    }
+    if (!agent) {
+        __classPrivateFieldSet(this, _AiAssistancePanel_conversation, undefined, "f");
+        // We need to run doConversation separately
+        __classPrivateFieldSet(this, _AiAssistancePanel_messages, [], "f");
+        // If a no new agent is provided
+        // but conversation is
+        // update with history conversation
+        if (conversation) {
+            __classPrivateFieldSet(this, _AiAssistancePanel_conversation, conversation, "f");
+        }
+    }
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f") && !__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")) {
+        __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_selectDefaultAgentIfNeeded).call(this);
+    }
+    __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_onContextSelectionChanged).call(this);
+    this.requestUpdate();
+}, _AiAssistancePanel_onPrimaryPageChanged = function _AiAssistancePanel_onPrimaryPageChanged() {
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_imageInput, "f")) {
+        return;
+    }
+    __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, undefined, "f");
+    this.requestUpdate();
+}, _AiAssistancePanel_getChangeSummary = function _AiAssistancePanel_getChangeSummary() {
+    if (!isAiAssistancePatchingEnabled() || !__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f") || __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.isReadOnly) {
+        return;
+    }
+    return __classPrivateFieldGet(this, _AiAssistancePanel_changeManager, "f").formatChangesForPatching(__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f").id, /* includeSourceLocation= */ true);
+}, _AiAssistancePanel_handleSelectElementClick = function _AiAssistancePanel_handleSelectElementClick() {
+    void __classPrivateFieldGet(this, _AiAssistancePanel_toggleSearchElementAction, "f")?.execute();
+}, _AiAssistancePanel_isTextInputDisabled = function _AiAssistancePanel_isTextInputDisabled() {
+    // If the `aiAssistanceSetting` is not enabled
+    // or if the user is blocked by age, the text input is disabled.
+    const aiAssistanceSetting = __classPrivateFieldGet(this, _AiAssistancePanel_aiAssistanceEnabledSetting, "f")?.getIfNotDisabled();
+    const isBlockedByAge = Root.Runtime.hostConfig.aidaAvailability?.blockedByAge === true;
+    if (!aiAssistanceSetting || isBlockedByAge) {
+        return true;
+    }
+    // If the Aida is not available, the text input is disabled.
+    const isAidaAvailable = __classPrivateFieldGet(this, _AiAssistancePanel_aidaAvailability, "f") === "available" /* Host.AidaClient.AidaAccessPreconditions.AVAILABLE */;
+    if (!isAidaAvailable) {
+        return true;
+    }
+    // If sending a new message is blocked by cross origin context
+    // the text input is disabled.
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_blockedByCrossOrigin, "f")) {
+        return true;
+    }
+    // If there is no current agent if there is no selected context
+    // the text input is disabled.
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f") || !__classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f")) {
+        return true;
+    }
+    return false;
+}, _AiAssistancePanel_shouldShowChatActions = function _AiAssistancePanel_shouldShowChatActions() {
+    const aiAssistanceSetting = __classPrivateFieldGet(this, _AiAssistancePanel_aiAssistanceEnabledSetting, "f")?.getIfNotDisabled();
+    const isBlockedByAge = Root.Runtime.hostConfig.aidaAvailability?.blockedByAge === true;
+    if (!aiAssistanceSetting || isBlockedByAge) {
+        return false;
+    }
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_aidaAvailability, "f") === "no-account-email" /* Host.AidaClient.AidaAccessPreconditions.NO_ACCOUNT_EMAIL */ ||
+        __classPrivateFieldGet(this, _AiAssistancePanel_aidaAvailability, "f") === "sync-is-paused" /* Host.AidaClient.AidaAccessPreconditions.SYNC_IS_PAUSED */) {
+        return false;
+    }
+    return true;
+}, _AiAssistancePanel_getChatInputPlaceholder = function _AiAssistancePanel_getChatInputPlaceholder() {
+    const state = __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getChatUiState).call(this);
+    if (state === "consent-view" /* ChatViewState.CONSENT_VIEW */ || !__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")) {
+        return i18nString(UIStrings.followTheSteps);
+    }
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_blockedByCrossOrigin, "f")) {
+        return lockedString(UIStringsNotTranslate.crossOriginError);
+    }
+    switch (__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").type) {
+        case "freestyler" /* AiAssistanceModel.ConversationType.STYLING */:
+            return __classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f") ? lockedString(UIStringsNotTranslate.inputPlaceholderForStyling) :
+                lockedString(UIStringsNotTranslate.inputPlaceholderForStylingNoContext);
+        case "drjones-file" /* AiAssistanceModel.ConversationType.FILE */:
+            return __classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f") ? lockedString(UIStringsNotTranslate.inputPlaceholderForFile) :
+                lockedString(UIStringsNotTranslate.inputPlaceholderForFileNoContext);
+        case "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */:
+            return __classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f") ? lockedString(UIStringsNotTranslate.inputPlaceholderForNetwork) :
+                lockedString(UIStringsNotTranslate.inputPlaceholderForNetworkNoContext);
+        case "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */: {
+            const perfPanel = UI.Context.Context.instance().flavor(TimelinePanel.TimelinePanel.TimelinePanel);
+            if (perfPanel?.hasActiveTrace()) {
+                return __classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f") ? lockedString(UIStringsNotTranslate.inputPlaceholderForPerformance) :
+                    lockedString(UIStringsNotTranslate.inputPlaceholderForPerformanceNoContext);
+            }
+            return lockedString(UIStringsNotTranslate.inputPlaceholderForPerformanceWithNoRecording);
+        }
+        case "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */:
+            return __classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f") ?
+                lockedString(UIStringsNotTranslate.inputPlaceholderForPerformanceInsights) :
+                lockedString(UIStringsNotTranslate.inputPlaceholderForPerformanceInsightsNoContext);
+    }
+}, _AiAssistancePanel_getDisclaimerText = function _AiAssistancePanel_getDisclaimerText() {
+    const state = __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getChatUiState).call(this);
+    if (state === "consent-view" /* ChatViewState.CONSENT_VIEW */ || !__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f") || __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").isReadOnly) {
+        return i18nString(UIStrings.inputDisclaimerForEmptyState);
+    }
+    const noLogging = Root.Runtime.hostConfig.aidaAvailability?.enterprisePolicyValue ===
+        Root.Runtime.GenAiEnterprisePolicyValue.ALLOW_WITHOUT_LOGGING;
+    switch (__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").type) {
+        case "freestyler" /* AiAssistanceModel.ConversationType.STYLING */:
+            if (noLogging) {
+                return lockedString(UIStringsNotTranslate.inputDisclaimerForStylingEnterpriseNoLogging);
+            }
+            return lockedString(UIStringsNotTranslate.inputDisclaimerForStyling);
+        case "drjones-file" /* AiAssistanceModel.ConversationType.FILE */:
+            if (noLogging) {
+                return lockedString(UIStringsNotTranslate.inputDisclaimerForFileEnterpriseNoLogging);
+            }
+            return lockedString(UIStringsNotTranslate.inputDisclaimerForFile);
+        case "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */:
+            if (noLogging) {
+                return lockedString(UIStringsNotTranslate.inputDisclaimerForNetworkEnterpriseNoLogging);
+            }
+            return lockedString(UIStringsNotTranslate.inputDisclaimerForNetwork);
+        // It is deliberate that both Performance agents use the same disclaimer
+        // text and this has been approved by Privacy.
+        case "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */:
+        case "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */:
+            if (noLogging) {
+                return lockedString(UIStringsNotTranslate.inputDisclaimerForPerformanceEnterpriseNoLogging);
+            }
+            return lockedString(UIStringsNotTranslate.inputDisclaimerForPerformance);
+    }
+}, _AiAssistancePanel_handleFeedbackSubmit = function _AiAssistancePanel_handleFeedbackSubmit(rpcId, rating, feedback) {
+    void __classPrivateFieldGet(this, _AiAssistancePanel_aidaClient, "f").registerClientEvent({
+        corresponding_aida_rpc_global_id: rpcId,
+        disable_user_content_logging: !__classPrivateFieldGet(this, _AiAssistancePanel_serverSideLoggingEnabled, "f"),
+        do_conversation_client_event: {
+            user_feedback: {
+                sentiment: rating,
+                user_input: {
+                    comment: feedback,
+                },
+            },
+        },
+    });
+}, _AiAssistancePanel_handleContextClick = function _AiAssistancePanel_handleContextClick() {
+    const context = __classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f");
+    if (context instanceof AiAssistanceModel.RequestContext) {
+        const requestLocation = NetworkForward.UIRequestLocation.UIRequestLocation.tab(context.getItem(), "headers-component" /* NetworkForward.UIRequestLocation.UIRequestTabs.HEADERS_COMPONENT */);
+        return Common.Revealer.reveal(requestLocation);
+    }
+    if (context instanceof AiAssistanceModel.FileContext) {
+        return Common.Revealer.reveal(context.getItem().uiLocation(0, 0));
+    }
+    if (context instanceof AiAssistanceModel.CallTreeContext) {
+        const item = context.getItem();
+        const event = item.selectedNode?.event ?? item.rootNode.event;
+        const trace = new SDK.TraceObject.RevealableEvent(event);
+        return Common.Revealer.reveal(trace);
+    }
+    if (context instanceof AiAssistanceModel.InsightContext) {
+        const item = context.getItem();
+        return Common.Revealer.reveal(item);
+    }
+    // Node picker is using linkifier.
+}, _AiAssistancePanel_populateHistoryMenu = function _AiAssistancePanel_populateHistoryMenu(contextMenu) {
+    for (const conversation of [...__classPrivateFieldGet(this, _AiAssistancePanel_historicalConversations, "f")].reverse()) {
+        if (conversation.isEmpty) {
+            continue;
+        }
+        const title = conversation.title;
+        if (!title) {
+            continue;
+        }
+        contextMenu.defaultSection().appendCheckboxItem(title, () => {
+            void __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_openConversation).call(this, conversation);
+        }, { checked: (__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f") === conversation) });
+    }
+    const historyEmpty = contextMenu.defaultSection().items.length === 0;
+    if (historyEmpty) {
+        contextMenu.defaultSection().appendItem(i18nString(UIStrings.noPastConversations), () => { }, {
+            disabled: true,
+        });
+    }
+    contextMenu.footerSection().appendItem(i18nString(UIStrings.clearChatHistory), () => {
+        void AiAssistanceModel.AiHistoryStorage.instance().deleteAll();
+    }, {
+        disabled: historyEmpty,
+    });
+}, _AiAssistancePanel_onHistoryDeleted = function _AiAssistancePanel_onHistoryDeleted() {
+    __classPrivateFieldSet(this, _AiAssistancePanel_historicalConversations, [], "f");
+    __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this);
+}, _AiAssistancePanel_onDeleteClicked = function _AiAssistancePanel_onDeleteClicked() {
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")) {
+        return;
+    }
+    __classPrivateFieldSet(this, _AiAssistancePanel_historicalConversations, __classPrivateFieldGet(this, _AiAssistancePanel_historicalConversations, "f").filter(conversation => conversation !== __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")), "f");
+    void AiAssistanceModel.AiHistoryStorage.instance().deleteHistoryEntry(__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").id);
+    __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this);
+    UI.ARIAUtils.LiveAnnouncer.alert(i18nString(UIStrings.chatDeleted));
+}, _AiAssistancePanel_openConversation = async function _AiAssistancePanel_openConversation(conversation) {
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f") === conversation) {
+        return;
+    }
+    __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this, conversation);
+    await __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_doConversation).call(this, conversation.history);
+}, _AiAssistancePanel_handleNewChatRequest = function _AiAssistancePanel_handleNewChatRequest() {
+    __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_updateConversationState).call(this);
+    UI.ARIAUtils.LiveAnnouncer.alert(i18nString(UIStrings.newChatCreated));
+}, _AiAssistancePanel_handleTakeScreenshot = async function _AiAssistancePanel_handleTakeScreenshot() {
+    const mainTarget = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
+    if (!mainTarget) {
+        throw new Error('Could not find main target');
+    }
+    const model = mainTarget.model(SDK.ScreenCaptureModel.ScreenCaptureModel);
+    if (!model) {
+        throw new Error('Could not find model');
+    }
+    const showLoadingTimeout = setTimeout(() => {
+        __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, { isLoading: true }, "f");
+        this.requestUpdate();
+    }, SHOW_LOADING_STATE_TIMEOUT);
+    const bytes = await model.captureScreenshot("jpeg" /* Protocol.Page.CaptureScreenshotRequestFormat.Jpeg */, SCREENSHOT_QUALITY, "fromViewport" /* SDK.ScreenCaptureModel.ScreenshotMode.FROM_VIEWPORT */);
+    clearTimeout(showLoadingTimeout);
+    if (bytes) {
+        __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, {
+            isLoading: false,
+            data: bytes,
+            mimeType: JPEG_MIME_TYPE,
+            inputType: "screenshot" /* AiAssistanceModel.MultimodalInputType.SCREENSHOT */
+        }, "f");
+        this.requestUpdate();
+        void this.updateComplete.then(() => {
+            __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.focusTextInput();
+        });
+    }
+    else {
+        __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, undefined, "f");
+        this.requestUpdate();
+        Snackbars.Snackbar.Snackbar.show({
+            message: lockedString(UIStringsNotTranslate.screenshotFailureMessage),
+        });
+    }
+}, _AiAssistancePanel_handleRemoveImageInput = function _AiAssistancePanel_handleRemoveImageInput() {
+    __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, undefined, "f");
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+        __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.focusTextInput();
+    });
+}, _AiAssistancePanel_handleTextInputChange = function _AiAssistancePanel_handleTextInputChange(value) {
+    const disableSubmit = !value;
+    if (disableSubmit !== __classPrivateFieldGet(this, _AiAssistancePanel_isTextInputEmpty, "f")) {
+        __classPrivateFieldSet(this, _AiAssistancePanel_isTextInputEmpty, disableSubmit, "f");
+        void this.requestUpdate();
+    }
+}, _AiAssistancePanel_handleLoadImage = async function _AiAssistancePanel_handleLoadImage(file) {
+    const showLoadingTimeout = setTimeout(() => {
+        __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, { isLoading: true }, "f");
+        this.requestUpdate();
+    }, SHOW_LOADING_STATE_TIMEOUT);
+    const reader = new FileReader();
+    let dataUrl;
+    try {
+        dataUrl = await new Promise((resolve, reject) => {
+            reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                    resolve(reader.result);
+                }
+                else {
+                    reject(new Error('FileReader result was not a string.'));
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    catch {
+        clearTimeout(showLoadingTimeout);
+        __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, undefined, "f");
+        this.requestUpdate();
+        void this.updateComplete.then(() => {
+            __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.focusTextInput();
+        });
+        Snackbars.Snackbar.Snackbar.show({
+            message: lockedString(UIStringsNotTranslate.uploadImageFailureMessage),
+        });
+        return;
+    }
+    clearTimeout(showLoadingTimeout);
+    if (!dataUrl) {
+        return;
+    }
+    const commaIndex = dataUrl.indexOf(',');
+    const bytes = dataUrl.substring(commaIndex + 1);
+    __classPrivateFieldSet(this, _AiAssistancePanel_imageInput, {
+        isLoading: false,
+        data: bytes,
+        mimeType: file.type,
+        inputType: "uploaded-image" /* AiAssistanceModel.MultimodalInputType.UPLOADED_IMAGE */
+    }, "f");
+    this.requestUpdate();
+    void this.updateComplete.then(() => {
+        __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.focusTextInput();
+    });
+}, _AiAssistancePanel_cancel = function _AiAssistancePanel_cancel() {
+    __classPrivateFieldGet(this, _AiAssistancePanel_runAbortController, "f").abort();
+    __classPrivateFieldSet(this, _AiAssistancePanel_runAbortController, new AbortController(), "f");
+}, _AiAssistancePanel_onContextSelectionChanged = function _AiAssistancePanel_onContextSelectionChanged() {
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f")) {
+        __classPrivateFieldSet(this, _AiAssistancePanel_blockedByCrossOrigin, false, "f");
+        return;
+    }
+    __classPrivateFieldSet(this, _AiAssistancePanel_selectedContext, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getConversationContext).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")), "f");
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f")) {
+        __classPrivateFieldSet(this, _AiAssistancePanel_blockedByCrossOrigin, false, "f");
+        // Clear out any text the user has entered into the input but never
+        // submitted now they have no active context
+        __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.clearTextInput();
+        return;
+    }
+    __classPrivateFieldSet(this, _AiAssistancePanel_blockedByCrossOrigin, !__classPrivateFieldGet(this, _AiAssistancePanel_selectedContext, "f").isOriginAllowed(__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f").origin), "f");
+}, _AiAssistancePanel_getConversationContext = function _AiAssistancePanel_getConversationContext(conversation) {
+    if (!conversation) {
+        return null;
+    }
+    let context;
+    switch (conversation.type) {
+        case "freestyler" /* AiAssistanceModel.ConversationType.STYLING */:
+            context = __classPrivateFieldGet(this, _AiAssistancePanel_selectedElement, "f");
+            break;
+        case "drjones-file" /* AiAssistanceModel.ConversationType.FILE */:
+            context = __classPrivateFieldGet(this, _AiAssistancePanel_selectedFile, "f");
+            break;
+        case "drjones-network-request" /* AiAssistanceModel.ConversationType.NETWORK */:
+            context = __classPrivateFieldGet(this, _AiAssistancePanel_selectedRequest, "f");
+            break;
+        case "drjones-performance" /* AiAssistanceModel.ConversationType.PERFORMANCE */:
+            context = __classPrivateFieldGet(this, _AiAssistancePanel_selectedCallTree, "f");
+            break;
+        case "performance-insight" /* AiAssistanceModel.ConversationType.PERFORMANCE_INSIGHT */:
+            context = __classPrivateFieldGet(this, _AiAssistancePanel_selectedPerformanceInsight, "f");
+            break;
+    }
+    return context;
+}, _AiAssistancePanel_startConversation = async function _AiAssistancePanel_startConversation(text, imageInput, multimodalInputType) {
+    if (!__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f")) {
+        return;
+    }
+    // Cancel any previous in-flight conversation.
+    __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_cancel).call(this);
+    const signal = __classPrivateFieldGet(this, _AiAssistancePanel_runAbortController, "f").signal;
+    const context = __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_getConversationContext).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f"));
+    // If a different context is provided, it must be from the same origin.
+    if (context && !context.isOriginAllowed(__classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f").origin)) {
+        // This error should not be reached. If it happens, some
+        // invariants do not hold anymore.
+        throw new Error('cross-origin context data should not be included');
+    }
+    const image = isAiAssistanceMultimodalInputEnabled() ? imageInput : undefined;
+    const imageId = image ? crypto.randomUUID() : undefined;
+    const multimodalInput = image && imageId && multimodalInputType ? {
+        input: image,
+        id: imageId,
+        type: multimodalInputType,
+    } :
+        undefined;
+    if (__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")) {
+        void VisualLogging.logFunctionCall(`start-conversation-${__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f").type}`, 'ui');
+    }
+    const runner = __classPrivateFieldGet(this, _AiAssistancePanel_conversationAgent, "f").run(text, {
+        signal,
+        selected: context,
+    }, multimodalInput);
+    await __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_doConversation).call(this, __classPrivateFieldGet(this, _AiAssistancePanel_instances, "m", _AiAssistancePanel_saveResponsesToCurrentConversation).call(this, runner));
+}, _AiAssistancePanel_saveResponsesToCurrentConversation = async function* _AiAssistancePanel_saveResponsesToCurrentConversation(items) {
+    const currentConversation = __classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f");
+    for await (const data of items) {
+        // We don't want to save partial responses to the conversation history.
+        if (data.type !== "answer" /* AiAssistanceModel.ResponseType.ANSWER */ || data.complete) {
+            void currentConversation?.addHistoryItem(data);
+        }
+        yield data;
+    }
+}, _AiAssistancePanel_doConversation = async function _AiAssistancePanel_doConversation(items) {
+    const release = await __classPrivateFieldGet(this, _AiAssistancePanel_mutex, "f").acquire();
+    try {
+        let systemMessage = {
+            entity: "model" /* ChatMessageEntity.MODEL */,
+            steps: [],
+        };
+        let step = { isLoading: true };
+        /**
+         * Commits the step to props only if necessary.
+         */
+        function commitStep() {
+            if (systemMessage.steps.at(-1) !== step) {
+                systemMessage.steps.push(step);
+            }
+        }
+        __classPrivateFieldSet(this, _AiAssistancePanel_isLoading, true, "f");
+        let announcedAnswerLoading = false;
+        let announcedAnswerReady = false;
+        for await (const data of items) {
+            step.sideEffect = undefined;
+            switch (data.type) {
+                case "user-query" /* AiAssistanceModel.ResponseType.USER_QUERY */: {
+                    __classPrivateFieldGet(this, _AiAssistancePanel_messages, "f").push({
+                        entity: "user" /* ChatMessageEntity.USER */,
+                        text: data.query,
+                        imageInput: data.imageInput,
+                    });
+                    systemMessage = {
+                        entity: "model" /* ChatMessageEntity.MODEL */,
+                        steps: [],
+                    };
+                    __classPrivateFieldGet(this, _AiAssistancePanel_messages, "f").push(systemMessage);
+                    break;
+                }
+                case "querying" /* AiAssistanceModel.ResponseType.QUERYING */: {
+                    step = { isLoading: true };
+                    if (!systemMessage.steps.length) {
+                        systemMessage.steps.push(step);
+                    }
+                    break;
+                }
+                case "context" /* AiAssistanceModel.ResponseType.CONTEXT */: {
+                    step.title = data.title;
+                    step.contextDetails = data.details;
+                    step.isLoading = false;
+                    commitStep();
+                    break;
+                }
+                case "title" /* AiAssistanceModel.ResponseType.TITLE */: {
+                    step.title = data.title;
+                    commitStep();
+                    break;
+                }
+                case "thought" /* AiAssistanceModel.ResponseType.THOUGHT */: {
+                    step.isLoading = false;
+                    step.thought = data.thought;
+                    commitStep();
+                    break;
+                }
+                case "suggestions" /* AiAssistanceModel.ResponseType.SUGGESTIONS */: {
+                    systemMessage.suggestions = data.suggestions;
+                    break;
+                }
+                case "side-effect" /* AiAssistanceModel.ResponseType.SIDE_EFFECT */: {
+                    step.isLoading = false;
+                    step.code ?? (step.code = data.code);
+                    step.sideEffect = {
+                        onAnswer: (result) => {
+                            data.confirm(result);
+                            step.sideEffect = undefined;
+                            this.requestUpdate();
+                        },
+                    };
+                    commitStep();
+                    break;
+                }
+                case "action" /* AiAssistanceModel.ResponseType.ACTION */: {
+                    step.isLoading = false;
+                    step.code ?? (step.code = data.code);
+                    step.output ?? (step.output = data.output);
+                    step.canceled = data.canceled;
+                    commitStep();
+                    break;
+                }
+                case "answer" /* AiAssistanceModel.ResponseType.ANSWER */: {
+                    systemMessage.suggestions ?? (systemMessage.suggestions = data.suggestions);
+                    systemMessage.answer = data.text;
+                    systemMessage.rpcId = data.rpcId;
+                    // When there is an answer without any thinking steps, we don't want to show the thinking step.
+                    if (systemMessage.steps.length === 1 && systemMessage.steps[0].isLoading) {
+                        systemMessage.steps.pop();
+                    }
+                    step.isLoading = false;
+                    break;
+                }
+                case "error" /* AiAssistanceModel.ResponseType.ERROR */: {
+                    systemMessage.error = data.error;
+                    systemMessage.rpcId = undefined;
+                    const lastStep = systemMessage.steps.at(-1);
+                    if (lastStep) {
+                        // Mark the last step as cancelled to make the UI feel better.
+                        if (data.error === "abort" /* AiAssistanceModel.ErrorType.ABORT */) {
+                            lastStep.canceled = true;
+                            // If error happens while the step is still loading remove it.
+                        }
+                        else if (lastStep.isLoading) {
+                            systemMessage.steps.pop();
+                        }
+                    }
+                    if (data.error === "block" /* AiAssistanceModel.ErrorType.BLOCK */) {
+                        systemMessage.answer = undefined;
+                    }
+                }
+            }
+            // Commit update intermediated step when not
+            // in read only mode.
+            if (!__classPrivateFieldGet(this, _AiAssistancePanel_conversation, "f")?.isReadOnly) {
+                this.requestUpdate();
+                // This handles scrolling to the bottom for live conversations when:
+                // * User submits the query & the context step is shown.
+                // * There is a side effect dialog  shown.
+                if (data.type === "context" /* AiAssistanceModel.ResponseType.CONTEXT */ ||
+                    data.type === "side-effect" /* AiAssistanceModel.ResponseType.SIDE_EFFECT */) {
+                    __classPrivateFieldGet(this, _AiAssistancePanel_viewOutput, "f").chatView?.scrollToBottom();
+                }
+                // Announce as status update to screen readers when:
+                // * Context is received (e.g. Analyzing the prompt)
+                // * Answer started streaming
+                // * Answer finished streaming
+                switch (data.type) {
+                    case "context" /* AiAssistanceModel.ResponseType.CONTEXT */:
+                        UI.ARIAUtils.LiveAnnouncer.status(data.title);
+                        break;
+                    case "answer" /* AiAssistanceModel.ResponseType.ANSWER */: {
+                        if (!data.complete && !announcedAnswerLoading) {
+                            announcedAnswerLoading = true;
+                            UI.ARIAUtils.LiveAnnouncer.status(lockedString(UIStringsNotTranslate.answerLoading));
+                        }
+                        else if (data.complete && !announcedAnswerReady) {
+                            announcedAnswerReady = true;
+                            UI.ARIAUtils.LiveAnnouncer.status(lockedString(UIStringsNotTranslate.answerReady));
+                        }
+                    }
+                }
+            }
+        }
+        __classPrivateFieldSet(this, _AiAssistancePanel_isLoading, false, "f");
+        this.requestUpdate();
+    }
+    finally {
+        release();
+    }
+};
+AiAssistancePanel.panelName = 'freestyler';
+export class ActionDelegate {
+    handleAction(_context, actionId) {
+        switch (actionId) {
+            case 'freestyler.elements-floating-button':
+            case 'freestyler.element-panel-context':
+            case 'drjones.network-floating-button':
+            case 'drjones.network-panel-context':
+            case 'drjones.performance-panel-context':
+            case 'drjones.performance-insight-context':
+            case 'drjones.sources-floating-button':
+            case 'drjones.sources-panel-context': {
+                void (async () => {
+                    const view = UI.ViewManager.ViewManager.instance().view(AiAssistancePanel.panelName);
+                    if (!view) {
+                        return;
+                    }
+                    await UI.ViewManager.ViewManager.instance().showView(AiAssistancePanel.panelName);
+                    const minDrawerSize = UI.InspectorView.InspectorView.instance().totalSize() / 4;
+                    if (UI.InspectorView.InspectorView.instance().drawerSize() < minDrawerSize) {
+                        // If the drawer is too small, resize it to the quarter of the total size.
+                        // This ensures the AI Assistance panel has enough space to be usable when opened via an action.
+                        UI.InspectorView.InspectorView.instance().setDrawerSize(minDrawerSize);
+                    }
+                    const widget = (await view.widget());
+                    widget.handleAction(actionId);
+                })();
+                return true;
+            }
+        }
+        return false;
+    }
+}
+function isAiAssistanceMultimodalUploadInputEnabled() {
+    return isAiAssistanceMultimodalInputEnabled() &&
+        Boolean(Root.Runtime.hostConfig.devToolsFreestyler?.multimodalUploadInput);
+}
+function isAiAssistanceMultimodalInputEnabled() {
+    return Boolean(Root.Runtime.hostConfig.devToolsFreestyler?.multimodal);
+}
+function isAiAssistanceServerSideLoggingEnabled() {
+    return !Root.Runtime.hostConfig.aidaAvailability?.disallowLogging;
+}
+function isAiAssistanceStylingWithFunctionCallingEnabled() {
+    return Boolean(Root.Runtime.hostConfig.devToolsFreestyler?.functionCalling);
+}
+//# sourceMappingURL=AiAssistancePanel.js.map
