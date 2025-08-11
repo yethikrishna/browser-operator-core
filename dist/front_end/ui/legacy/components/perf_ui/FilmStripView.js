@@ -1,0 +1,249 @@
+// Copyright 2015 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+/* eslint-disable rulesdir/no-imperative-dom-api */
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
+var _FilmStripView_filmStrip, _Dialog_instances, _Dialog_data, _Dialog_framesCount, _Dialog_zeroTime;
+import * as Common from '../../../../core/common/common.js';
+import * as Host from '../../../../core/host/host.js';
+import * as i18n from '../../../../core/i18n/i18n.js';
+import * as Trace from '../../../../models/trace/trace.js';
+import * as VisualLogging from '../../../visual_logging/visual_logging.js';
+import * as UI from '../../legacy.js';
+import filmStripViewStyles from './filmStripView.css.js';
+const UIStrings = {
+    /**
+     *@description Element title in Film Strip View of the Performance panel
+     */
+    doubleclickToZoomImageClickTo: 'Doubleclick to zoom image. Click to view preceding requests.',
+    /**
+     *@description Aria label for captured screenshots in network panel.
+     *@example {3ms} PH1
+     */
+    screenshotForSSelectToView: 'Screenshot for {PH1} - select to view preceding requests.',
+    /**
+     *@description Text for one or a group of screenshots
+     */
+    screenshot: 'Screenshot',
+    /**
+     *@description Prev button title in Film Strip View of the Performance panel
+     */
+    previousFrame: 'Previous frame',
+    /**
+     *@description Next button title in Film Strip View of the Performance panel
+     */
+    nextFrame: 'Next frame',
+};
+const str_ = i18n.i18n.registerUIStrings('ui/legacy/components/perf_ui/FilmStripView.ts', UIStrings);
+const i18nString = i18n.i18n.getLocalizedString.bind(undefined, str_);
+export class FilmStripView extends Common.ObjectWrapper.eventMixin(UI.Widget.HBox) {
+    constructor() {
+        super(true);
+        this.zeroTime = Trace.Types.Timing.Milli(0);
+        _FilmStripView_filmStrip.set(this, null);
+        this.registerRequiredCSS(filmStripViewStyles);
+        this.contentElement.classList.add('film-strip-view');
+        this.statusLabel = this.contentElement.createChild('div', 'gray-info-message');
+        this.reset();
+    }
+    static setImageData(imageElement, dataUri) {
+        if (dataUri) {
+            imageElement.src = dataUri;
+        }
+    }
+    setModel(filmStrip) {
+        __classPrivateFieldSet(this, _FilmStripView_filmStrip, filmStrip, "f");
+        this.zeroTime = Trace.Helpers.Timing.microToMilli(filmStrip.zeroTime);
+        if (!__classPrivateFieldGet(this, _FilmStripView_filmStrip, "f").frames.length) {
+            this.reset();
+            return;
+        }
+        this.update();
+    }
+    createFrameElement(frame) {
+        const time = Trace.Helpers.Timing.microToMilli(frame.screenshotEvent.ts);
+        const frameTime = i18n.TimeUtilities.millisToString(time - this.zeroTime);
+        const element = document.createElement('button');
+        element.classList.add('frame');
+        UI.Tooltip.Tooltip.install(element, i18nString(UIStrings.doubleclickToZoomImageClickTo));
+        element.createChild('div', 'time').textContent = frameTime;
+        element.tabIndex = 0;
+        element.setAttribute('jslog', `${VisualLogging.preview('film-strip').track({ click: true, dblclick: true })}`);
+        element.setAttribute('aria-label', i18nString(UIStrings.screenshotForSSelectToView, { PH1: frameTime }));
+        UI.ARIAUtils.markAsButton(element);
+        const imageElement = element.createChild('div', 'thumbnail').createChild('img');
+        imageElement.alt = i18nString(UIStrings.screenshot);
+        element.addEventListener('mousedown', this.onMouseEvent.bind(this, "FrameSelected" /* Events.FRAME_SELECTED */, time), false);
+        element.addEventListener('mouseenter', this.onMouseEvent.bind(this, "FrameEnter" /* Events.FRAME_ENTER */, time), false);
+        element.addEventListener('mouseout', this.onMouseEvent.bind(this, "FrameExit" /* Events.FRAME_EXIT */, time), false);
+        element.addEventListener('dblclick', this.onDoubleClick.bind(this, frame), false);
+        element.addEventListener('focusin', this.onMouseEvent.bind(this, "FrameEnter" /* Events.FRAME_ENTER */, time), false);
+        element.addEventListener('focusout', this.onMouseEvent.bind(this, "FrameExit" /* Events.FRAME_EXIT */, time), false);
+        const imgData = Trace.Handlers.ModelHandlers.Screenshots.screenshotImageDataUri(frame.screenshotEvent);
+        FilmStripView.setImageData(imageElement, imgData);
+        return element;
+    }
+    update() {
+        const frames = __classPrivateFieldGet(this, _FilmStripView_filmStrip, "f")?.frames;
+        if (!frames || frames.length < 1) {
+            return;
+        }
+        const frameElements = frames.map(frame => this.createFrameElement(frame));
+        this.contentElement.removeChildren();
+        for (const element of frameElements) {
+            this.contentElement.appendChild(element);
+        }
+    }
+    onMouseEvent(eventName, timestamp) {
+        // TODO(crbug.com/1228674): Use type-safe event dispatch and remove <any>.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.dispatchEventToListeners(eventName, timestamp);
+    }
+    onDoubleClick(filmStripFrame) {
+        if (!__classPrivateFieldGet(this, _FilmStripView_filmStrip, "f")) {
+            return;
+        }
+        Dialog.fromFilmStrip(__classPrivateFieldGet(this, _FilmStripView_filmStrip, "f"), filmStripFrame.index);
+    }
+    reset() {
+        this.zeroTime = Trace.Types.Timing.Milli(0);
+        this.contentElement.removeChildren();
+        this.contentElement.appendChild(this.statusLabel);
+    }
+    setStatusText(text) {
+        this.statusLabel.textContent = text;
+    }
+}
+_FilmStripView_filmStrip = new WeakMap();
+export var Events;
+(function (Events) {
+    Events["FRAME_SELECTED"] = "FrameSelected";
+    Events["FRAME_ENTER"] = "FrameEnter";
+    Events["FRAME_EXIT"] = "FrameExit";
+})(Events || (Events = {}));
+export class Dialog {
+    static fromFilmStrip(filmStrip, selectedFrameIndex) {
+        const data = {
+            source: 'Trace',
+            frames: filmStrip.frames,
+            index: selectedFrameIndex,
+            zeroTime: Trace.Helpers.Timing.microToMilli(filmStrip.zeroTime),
+        };
+        return new Dialog(data);
+    }
+    constructor(data) {
+        _Dialog_instances.add(this);
+        this.dialog = null;
+        _Dialog_data.set(this, void 0);
+        __classPrivateFieldSet(this, _Dialog_data, data, "f");
+        this.index = data.index;
+        const prevButton = UI.UIUtils.createTextButton('\u25C0', this.onPrevFrame.bind(this));
+        UI.Tooltip.Tooltip.install(prevButton, i18nString(UIStrings.previousFrame));
+        const nextButton = UI.UIUtils.createTextButton('\u25B6', this.onNextFrame.bind(this));
+        UI.Tooltip.Tooltip.install(nextButton, i18nString(UIStrings.nextFrame));
+        this.fragment = UI.Fragment.Fragment.build `
+      <x-widget flex=none margin='var(--sys-size-7) var(--sys-size-8) var(--sys-size-8) var(--sys-size-8)'>
+        <x-hbox overflow=auto border='var(--sys-size-1) solid var(--sys-color-divider)'>
+          <img $='image' data-film-strip-dialog-img style="max-height: 80vh; max-width: 80vw;"></img>
+        </x-hbox>
+        <x-hbox x-center justify-content=center margin-top='var(--sys-size-6)'>
+          ${prevButton}
+          <x-hbox $='time' margin='var(--sys-size-5)'></x-hbox>
+          ${nextButton}
+        </x-hbox>
+      </x-widget>
+    `;
+        this.widget = this.fragment.element();
+        this.widget.tabIndex = 0;
+        this.widget.addEventListener('keydown', this.keyDown.bind(this), false);
+        this.dialog = null;
+        void this.render();
+    }
+    hide() {
+        if (this.dialog) {
+            this.dialog.hide();
+        }
+    }
+    resize() {
+        if (!this.dialog) {
+            this.dialog = new UI.Dialog.Dialog();
+            this.dialog.contentElement.appendChild(this.widget);
+            this.dialog.setDefaultFocusedElement(this.widget);
+            this.dialog.show();
+        }
+        this.dialog.setSizeBehavior("MeasureContent" /* UI.GlassPane.SizeBehavior.MEASURE_CONTENT */);
+    }
+    keyDown(event) {
+        const keyboardEvent = event;
+        switch (keyboardEvent.key) {
+            case 'ArrowLeft':
+                if (Host.Platform.isMac() && keyboardEvent.metaKey) {
+                    this.onFirstFrame();
+                }
+                else {
+                    this.onPrevFrame();
+                }
+                break;
+            case 'ArrowRight':
+                if (Host.Platform.isMac() && keyboardEvent.metaKey) {
+                    this.onLastFrame();
+                }
+                else {
+                    this.onNextFrame();
+                }
+                break;
+            case 'Home':
+                this.onFirstFrame();
+                break;
+            case 'End':
+                this.onLastFrame();
+                break;
+        }
+    }
+    onPrevFrame() {
+        if (this.index > 0) {
+            --this.index;
+        }
+        void this.render();
+    }
+    onNextFrame() {
+        if (this.index < __classPrivateFieldGet(this, _Dialog_instances, "m", _Dialog_framesCount).call(this) - 1) {
+            ++this.index;
+        }
+        void this.render();
+    }
+    onFirstFrame() {
+        this.index = 0;
+        void this.render();
+    }
+    onLastFrame() {
+        this.index = __classPrivateFieldGet(this, _Dialog_instances, "m", _Dialog_framesCount).call(this) - 1;
+        void this.render();
+    }
+    render() {
+        const frame = __classPrivateFieldGet(this, _Dialog_data, "f").frames[this.index];
+        const timestamp = Trace.Helpers.Timing.microToMilli(frame.screenshotEvent.ts);
+        this.fragment.$('time').textContent = i18n.TimeUtilities.millisToString(timestamp - __classPrivateFieldGet(this, _Dialog_instances, "m", _Dialog_zeroTime).call(this));
+        const image = this.fragment.$('image');
+        image.setAttribute('data-frame-index', this.index.toString());
+        const imgData = Trace.Handlers.ModelHandlers.Screenshots.screenshotImageDataUri(frame.screenshotEvent);
+        FilmStripView.setImageData(image, imgData);
+        this.resize();
+    }
+}
+_Dialog_data = new WeakMap(), _Dialog_instances = new WeakSet(), _Dialog_framesCount = function _Dialog_framesCount() {
+    return __classPrivateFieldGet(this, _Dialog_data, "f").frames.length;
+}, _Dialog_zeroTime = function _Dialog_zeroTime() {
+    return __classPrivateFieldGet(this, _Dialog_data, "f").zeroTime;
+};
+//# sourceMappingURL=FilmStripView.js.map
