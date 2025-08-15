@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Operator - Vanilla JS Integration</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .section {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #fafafa;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, textarea, select, button {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+            margin-top: 10px;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            min-height: 200px;
+        }
+        
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+        
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .success {
+            color: #2e7d32;
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .agent-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .agent-button {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #007bff;
+            background: white;
+            color: #007bff;
+            cursor: pointer;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .agent-button.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background: white;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: #f1f3f4;
+            color: #333;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🤖 Browser Operator Integration Examples</h1>
+        <p>Demonstrating different ways to integrate Browser Operator into your web application</p>
+    </header>
+
+    <div class="container">
+        <!-- Left Panel: Single Request -->
+        <div class="section">
+            <h2>Single AI Request</h2>
+            
+            <form id="singleRequestForm">
+                <div class="form-group">
+                    <label for="apiKey">OpenAI API Key:</label>
+                    <input type="password" id="apiKey" placeholder="sk-..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="agentType">Agent Type:</label>
+                    <select id="agentType">
+                        <option value="search">🔍 Search Agent</option>
+                        <option value="deep-research">📚 Deep Research</option>
+                        <option value="shopping">🛍️ Shopping Assistant</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="query">Your Question:</label>
+                    <textarea id="query" rows="3" placeholder="Ask me anything about the web..." required></textarea>
+                </div>
+                
+                <button type="submit">🚀 Process Request</button>
+            </form>
+            
+            <div id="singleResult" class="result"></div>
+        </div>
+
+        <!-- Right Panel: Chat Interface -->
+        <div class="section">
+            <h2>AI Chat Interface</h2>
+            
+            <div id="setupForm">
+                <div class="form-group">
+                    <label for="chatApiKey">OpenAI API Key:</label>
+                    <input type="password" id="chatApiKey" placeholder="sk-..." required>
+                </div>
+                <button id="initializeChat">Initialize Chat</button>
+            </div>
+
+            <div id="chatInterface" style="display: none;">
+                <div class="agent-buttons">
+                    <button class="agent-button active" data-agent="search">🔍 Search</button>
+                    <button class="agent-button" data-agent="deep-research">📚 Research</button>
+                    <button class="agent-button" data-agent="shopping">🛍️ Shopping</button>
+                </div>
+
+                <div id="chatContainer" class="chat-container"></div>
+
+                <form id="chatForm">
+                    <input type="text" id="chatInput" placeholder="Type your message..." required>
+                    <button type="submit">Send</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Browser Operator Core - would be imported from npm in real app -->
+    <script type="module">
+        // Simulated Browser Operator Core for demo
+        // In real app: import { processAIRequest, BrowserOperatorCore } from 'browser-operator-core';
+        
+        class BrowserOperatorCore {
+            constructor(config) {
+                this.config = config;
+                this.initialized = false;
+            }
+
+            async initialize() {
+                // Simulate initialization
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                this.initialized = true;
+            }
+
+            async processRequest(query, options = {}) {
+                // Simulate AI processing
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const agentType = options.agentType || 'search';
+                const responses = {
+                    search: `🔍 Search Result: Found relevant information about "${query}". Based on my web search, here's what I discovered...`,
+                    'deep-research': `📚 Research Report: Comprehensive analysis of "${query}". After examining multiple sources, key findings include...`,
+                    shopping: `🛍️ Shopping Analysis: Product comparison for "${query}". Based on current market data, here are the best options...`
+                };
+
+                return {
+                    content: responses[agentType] || responses.search,
+                    metadata: {
+                        executionTime: 2000,
+                        toolsUsed: ['web-search', 'content-extractor'],
+                        model: this.config.model || 'gpt-4'
+                    }
+                };
+            }
+
+            destroy() {
+                this.initialized = false;
+            }
+        }
+
+        // Single Request Example
+        document.getElementById('singleRequestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const apiKey = document.getElementById('apiKey').value;
+            const agentType = document.getElementById('agentType').value;
+            const query = document.getElementById('query').value;
+            const resultDiv = document.getElementById('singleResult');
+            
+            resultDiv.innerHTML = '<div class="loading">🤖 Processing your request...</div>';
+            
+            try {
+                // Simulate processAIRequest
+                const browserOp = new BrowserOperatorCore({
+                    llmProvider: 'openai',
+                    apiKey: apiKey,
+                    defaultAgentType: agentType
+                });
+                
+                await browserOp.initialize();
+                const result = await browserOp.processRequest(query, { agentType });
+                
+                resultDiv.innerHTML = `
+                    <div class="success">✅ Request completed successfully!</div>
+                    <h3>AI Response:</h3>
+                    <p>${result.content}</p>
+                    <hr>
+                    <small><strong>Execution Time:</strong> ${result.metadata.executionTime}ms | 
+                    <strong>Model:</strong> ${result.metadata.model}</small>
+                `;
+                
+                browserOp.destroy();
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        });
+
+        // Chat Interface Example
+        let chatBrowserOp = null;
+        let currentAgent = 'search';
+        const chatContainer = document.getElementById('chatContainer');
+        
+        document.getElementById('initializeChat').addEventListener('click', async () => {
+            const apiKey = document.getElementById('chatApiKey').value;
+            if (!apiKey) return;
+            
+            const setupForm = document.getElementById('setupForm');
+            const chatInterface = document.getElementById('chatInterface');
+            
+            setupForm.style.display = 'none';
+            chatInterface.style.display = 'block';
+            
+            chatContainer.innerHTML = '<div class="loading">🔄 Initializing AI chat...</div>';
+            
+            try {
+                chatBrowserOp = new BrowserOperatorCore({
+                    llmProvider: 'openai',
+                    apiKey: apiKey,
+                    defaultAgentType: currentAgent
+                });
+                
+                await chatBrowserOp.initialize();
+                chatContainer.innerHTML = '<div class="success">✅ Chat initialized! Ask me anything.</div>';
+            } catch (error) {
+                chatContainer.innerHTML = `<div class="error">❌ Failed to initialize: ${error.message}</div>`;
+            }
+        });
+
+        // Agent selection
+        document.querySelectorAll('.agent-button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.agent-button').forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+                currentAgent = button.dataset.agent;
+            });
+        });
+
+        // Chat form
+        document.getElementById('chatForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const input = document.getElementById('chatInput');
+            const query = input.value;
+            if (!query || !chatBrowserOp) return;
+            
+            // Add user message
+            addMessage('user', query);
+            input.value = '';
+            
+            // Add loading message
+            const loadingId = addMessage('assistant', '🤖 Thinking...');
+            
+            try {
+                const result = await chatBrowserOp.processRequest(query, { agentType: currentAgent });
+                
+                // Replace loading message with result
+                const loadingMsg = document.getElementById(loadingId);
+                loadingMsg.innerHTML = `
+                    <div>${result.content}</div>
+                    <div class="message-time">${new Date().toLocaleTimeString()}</div>
+                `;
+            } catch (error) {
+                const loadingMsg = document.getElementById(loadingId);
+                loadingMsg.innerHTML = `
+                    <div style="color: #d32f2f;">❌ Error: ${error.message}</div>
+                    <div class="message-time">${new Date().toLocaleTimeString()}</div>
+                `;
+            }
+        });
+
+        function addMessage(role, content) {
+            const messageId = 'msg-' + Date.now();
+            const messageDiv = document.createElement('div');
+            messageDiv.id = messageId;
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `
+                <div>${content}</div>
+                <div class="message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            return messageId;
+        }
+    </script>
+</body>
+</html>
